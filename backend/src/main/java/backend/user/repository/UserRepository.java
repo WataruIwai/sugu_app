@@ -23,6 +23,7 @@ public class UserRepository {
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (resultSet.next()) {
                     return new User(
+                        resultSet.getLong("id"),
                         resultSet.getString("email"),
                         resultSet.getString("password_hash")
                     );
@@ -43,6 +44,7 @@ public class UserRepository {
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (resultSet.next()) {
                     return new User(
+                        resultSet.getLong("id"),
                         resultSet.getString("email"),
                         resultSet.getString("password_hash")
                     );
@@ -54,13 +56,14 @@ public class UserRepository {
         }
     }
 
-    public void createUser(User newUser) {
+    public int createUser(User newUser) {
         String sql = "INSERT INTO users (email, password_hash) VALUES (?, ?)";
 
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, newUser.getEmail());
             statement.setString(2, newUser.getPasswordHash());
             int affectedRows = statement.executeUpdate();
+            return affectedRows;
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }

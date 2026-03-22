@@ -9,17 +9,19 @@ public class AuthController {
         this.authService = authService;
     }
 
-    public void signIn(String inputMail, String inputPassword) {
-        boolean result = authService.signIn(inputMail, inputPassword);
-        if(result) {
-            System.out.println("ログインに成功しました");
-        } else {
+    public String signIn(String inputMail, String inputPassword) {
+        String token = authService.signIn(inputMail, inputPassword);
+        if(token == null) {
             throw new RuntimeException("ログインに失敗しました");
         }
+        return token;
     }
 
-    public void signUp(String inputMail, String inputPassword) {
-        boolean result = authService.signUp(inputMail, inputPassword);
-        if(!result) throw new RuntimeException("ユーザー登録に失敗しました");
+    public String signUp(String inputMail, String inputPassword) {
+        String token = authService.signUp(inputMail, inputPassword);
+        if(token == null) {
+            throw new RuntimeException("ユーザー登録に失敗しました");
+        }
+        return token;
     }
 }
