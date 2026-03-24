@@ -7,8 +7,11 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.springframework.stereotype.Repository;
+
 import backend.word.domain.Word;
 
+@Repository
 public class WordRepository {
     private Connection connection;
 

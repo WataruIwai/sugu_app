@@ -1,11 +1,13 @@
 package backend.auth.service;
 
 import org.mindrot.jbcrypt.BCrypt;
+import org.springframework.stereotype.Service;
 
 import backend.auth.jwt.JwtService;
 import backend.user.domain.User;
 import backend.user.repository.UserRepository;
 
+@Service
 public class AuthService {
     private UserRepository userRepository;
     private JwtService jwtService;
@@ -15,7 +17,6 @@ public class AuthService {
         this.jwtService = jwtService;
     }
 
-    //ログイン(Sign in)
     public String signIn(String inputMail, String inputPassword) {
         if(inputMail.isBlank() || inputPassword.isBlank()) return null;
         User user = userRepository.getUserByEmail(inputMail);
@@ -28,7 +29,7 @@ public class AuthService {
         }
         return null;
     }
-    //新規ユーザー作成(Sign up)
+
     public String signUp(String inputMail, String inputPassword) {
         if(inputMail.isBlank() || inputPassword.isBlank()) return null;
         User user = userRepository.getUserByEmail(inputMail);
