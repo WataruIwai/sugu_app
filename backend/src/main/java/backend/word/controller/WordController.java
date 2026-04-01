@@ -29,26 +29,26 @@ public class WordController {
 
     @GetMapping
     public List<Word> getWords(@RequestHeader("Authorization") String authorizationHeader) {
-        long userId = extractUserIdFromHeader(authorizationHeader);
+        long userId = jwtService.extractUserIdFromHeader(authorizationHeader);
         return wordService.getWords(userId);
     }
 
     @GetMapping("/{wordId}")
     public Word getWord(@RequestHeader("Authorization") String authorizationHeader, @PathVariable long wordId) {
-        long userId = extractUserIdFromHeader(authorizationHeader);
+        long userId = jwtService.extractUserIdFromHeader(authorizationHeader);
         return wordService.getWord(userId, wordId);
     }
 
     @PostMapping
     public void createWord(@RequestHeader("Authorization") String authorizationHeader, @RequestBody Word newWord) {
-        long userId = extractUserIdFromHeader(authorizationHeader);
+        long userId = jwtService.extractUserIdFromHeader(authorizationHeader);
         newWord.setUserId(userId);
         wordService.createWord(newWord);
     }
 
     @PutMapping("/{wordId}")
     public void updateWord(@RequestHeader("Authorization") String authorizationHeader, @PathVariable long wordId, @RequestBody Word updateWord) {
-        long userId = extractUserIdFromHeader(authorizationHeader);
+        long userId = jwtService.extractUserIdFromHeader(authorizationHeader);
         updateWord.setId(wordId);
         updateWord.setUserId(userId);
         wordService.updateWord(updateWord);
@@ -56,16 +56,7 @@ public class WordController {
 
     @DeleteMapping("/{wordId}")
     public void deleteWord(@RequestHeader("Authorization") String authorizationHeader, @PathVariable long wordId) {
-        long userId = extractUserIdFromHeader(authorizationHeader);
+        long userId = jwtService.extractUserIdFromHeader(authorizationHeader);
         wordService.deleteWord(userId, wordId);
-    }
-
-    private long extractUserIdFromHeader(String authorizationHeader) {
-        String token = authorizationHeader.replace("Bearer ", "");
-        if (jwtService.isTokenValid(token)) {
-            return jwtService.extractUserId(token);
-        }
-
-        throw new RuntimeException("再度ログインしてください");
     }
 }

@@ -58,4 +58,13 @@ public class JwtService {
 
         return Long.valueOf(claims.getSubject());
     }
+
+    public long extractUserIdFromHeader(String authorizationHeader) {
+        String token = authorizationHeader.replace("Bearer ", "");
+        if (this.isTokenValid(token)) {
+            return this.extractUserId(token);
+        }
+
+        throw new RuntimeException("再度ログインしてください");
+    }
 }
