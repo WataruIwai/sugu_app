@@ -23,23 +23,47 @@ public class OpenAiClient {
         StructuredResponseCreateParams<OpenAiResponse> params = ResponseCreateParams.builder()
                 .model(ChatModel.GPT_5_4_NANO)
                 .input("""
-                        You are a dictionary assistant.
-                        The user input is: %s
+                        Act as a dictionary assistant.
+
+                        The user will input one word.
+                        You must always return a JSON object.
 
                         Rules:
-                        1. If the input is a valid English word, return its meaning.
-                        2. If the input looks like a typo:
-                        - Return exactly 3 candidate words based on spelling similarity.
-                        - Candidates must be single English words (no phrases).
-                        - Candidates must be very close in spelling (small edit distance).
-                        - Do NOT include the input itself as a candidate.
-                        3. Do NOT infer meaning from context.
+                        1. If the input is a valid English word:
+                        - "inputWord" = the user's original input
+                        - "candidates" = []
+                        - "resolvedWord" = the valid input word
+                        - If the word has multiple meanings:
+                            - "meaning" must be an array of meanings in English
+                            - "japanese" must be an array of corresponding Japanese translations
+                            - "example" must be an array of example sentences
+                        - If the word has only one meaning:
+                            - You may return a single string OR an array with one element (prefer array for consistency)
 
-                        Output rules:
-                        - Always include "candidates".
-                        - If candidates are provided, resolvedWord must be null
-                        - If the word is correct, candidates must be empty
-                        - Never use empty strings.
+                        2. If the input is misspelled or not a valid English word:
+                        - "inputWord" = the user's original input
+                        - "candidates" = exactly 3 similar English words
+                        - "resolvedWord" = null
+                        - "entries" = []
+
+                        Output format example:
+                        {
+                            "inputWord": "run",
+                            "candidates": [],
+                            "resolvedWord": "run",
+                            "entries": [
+                                {
+                                    "meaning": "to move fast",
+                                    "japanese": "走る",
+                                    "example": "I run every day."
+                                },
+                                {
+                                    "meaning": "to operate or function",
+                                    "japanese": "動く、作動する",
+                                    "example": "This machine runs smoothly."
+                                }
+                            ]
+                        }
                     """.formatted(word))
                 .text(OpenAiResponse.class).build();
 

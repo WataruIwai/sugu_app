@@ -6,6 +6,8 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 
 import backend.dictionary.domain.DictionaryEntry;
+import backend.dictionary.dto.DictionaryWord;
+import backend.dictionary.dto.WordEntry;
 import backend.dictionary.dto.WordResponse;
 import backend.dictionary.repository.DictionaryRepository;
 import backend.external.OpenAiClient;
@@ -22,27 +24,29 @@ public  class DictionaryService {
     }
 
     public WordResponse getWordData(String searchWord) {
-        Optional<DictionaryEntry> queryWordDataResult = dictionaryRepository.queryWordData(searchWord);
+        Optional<DictionaryWord> queryWordDataResult = dictionaryRepository.queryWordData(searchWord);
         if(queryWordDataResult.isPresent()) {
-            String word = queryWordDataResult.get().getWord();
-            String meaning = queryWordDataResult.get().getMeaning();
-            String japanese = queryWordDataResult.get().getJapanese();
-            String example = queryWordDataResult.get().getExample();
+            long id = queryWordDataResult.get().getId();
+            String word = queryWordDataResult.get().getNormalizedWord();
+            List<WordEntry> entries = dictionaryRepository.queryWordEntriesData(id);
 
-            return new WordResponse(word, meaning, japanese, example, "SUCCESS");
+            return new WordResponse(word, entries, "SUCCESS");
         } else {
             OpenAiResponse openAiResult = openAiClient.fetchWordData(searchWord);
             String inputWord = openAiResult.getInputWord();
             String resolvedWord = openAiResult.getResolvedWord();
             List<String> candidates = openAiResult.getCandidates();
-            String meaning = openAiResult.getMeaning();
-            String japanese = openAiResult.getJapanese();
-            String example = openAiResult.getExample();
+            List<WordEntry> entries = openAiResult.getEntries();
             if(resolvedWord ==  null || !inputWord.equalsIgnoreCase(resolvedWord)) {
-                return new WordResponse(resolvedWord, candidates, meaning, japanese, example, "SPELLING_SUSPECTED");
+                //スペルミスなどでcandidatesに値が3つあるパターン
+                return new WordResponse(inputWord, candidates, entries,"SPELLING_SUSPECTED");
             } else {
-                dictionaryRepository.createWordData(resolvedWord, meaning, japanese, example);
-                return new WordResponse(resolvedWord, meaning, japanese, example, "SUCCESS");
+                //open ai apiが正常に意味を出力した時
+                String normalized = resolvedWord.trim().toLowerCase();
+                long id = dictionaryRepository.createWordData(normalized);
+                dictionaryRepository.createEntriesData(id, entries);
+                //登録して、そのデータを取得して返すのがいいかも
+                return new WordResponse(normalized, candidates, entries, "SUCCESS");
             }
         }
     }
