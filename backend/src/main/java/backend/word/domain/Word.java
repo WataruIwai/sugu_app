@@ -4,20 +4,16 @@ public class Word {
     private long id;
     private long userId;
     private String word;
-    private String meaning;
-    private String memo;
-    private String pronunciation;
+    private long dictionaryWordId;
 
     public Word() {
     }
 
-    public Word(long id, long userId, String word, String meaning, String memo, String pronunciation) {
+    public Word(long id, long userId, String word, long dictionaryWordId) {
         this.id = id;
         this.userId = userId;
         this.word = word;
-        this.meaning = meaning;
-        this.memo = memo;
-        this.pronunciation = pronunciation;
+        this.dictionaryWordId = dictionaryWordId;
     }
 
     public long getId() {
@@ -32,16 +28,8 @@ public class Word {
         return word;
     }
 
-    public String getMeaning() {
-        return meaning;
-    }
-
-    public String getMemo() {
-        return memo;
-    }
-
-    public String getPronunciation() {
-        return pronunciation;
+    public long getDictionaryWordId() {
+        return dictionaryWordId;
     }
 
     public void setId(long wordId) {
@@ -55,15 +43,7 @@ public class Word {
         this.word = word;
     }
 
-    public void setMeaning(String meaning) {
-        this.meaning = meaning;
-    }
-
-    public void setMemo(String memo) {
-        this.memo = memo;
-    }
-
-    public void setPronunciation(String pronunciation) {
-        this.pronunciation = pronunciation;
+    public void setDictionaryWordId(long dictionaryWordId) {
+        this.dictionaryWordId = dictionaryWordId;
     }
 }

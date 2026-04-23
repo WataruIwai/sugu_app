@@ -1,24 +1,39 @@
 package backend.dictionary.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class WordEntry {
-    private String meaning;
-    private String japanese;
+    @JsonProperty("meaning_en")
+    private String meaningEn;
+
+    @JsonProperty("meaning_ja")
+    private String meaningJa;
+
     private String example;
 
     public WordEntry() {}
 
-    public WordEntry(String meaning, String japanese, String example) {
-        this.meaning = meaning;
-        this.japanese = japanese;
+    public WordEntry(String meaningEn, String meaningJa, String example) {
+        this.meaningEn = meaningEn;
+        this.meaningJa = meaningJa;
         this.example = example;
     }
 
-    public String getMeaning() { return meaning; }
-    public void setMeaning(String meaning) { this.meaning = meaning; }
+    public String getMeaning() { return meaningEn; }
+    public void setMeaning(String meaningEn) { this.meaningEn = meaningEn; }
 
-    public String getJapanese() { return japanese; }
-    public void setJapanese(String japanese) { this.japanese = japanese; }
+    public String getJapanese() { return meaningJa; }
+    public void setJapanese(String meaningJa) { this.meaningJa = meaningJa; }
 
     public String getExample() { return example; }
     public void setExample(String example) { this.example = example; }
+
+    @Override
+    public String toString() {
+        return "WordEntry{" +
+                "meaning_en='" + meaningEn + '\'' +
+                ", meaning_ja='" + meaningJa + '\'' +
+                ", example='" + example + '\'' +
+                '}';
+    }
 }

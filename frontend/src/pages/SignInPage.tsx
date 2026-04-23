@@ -12,6 +12,7 @@ type SignInPageProps = {
   onChangePassword: (value: string) => void;
   onSubmit: () => void;
   onNavigateSignUp: () => void;
+  onUseGuest: () => void;
 };
 
 export const SignInPage = ({
@@ -23,10 +24,12 @@ export const SignInPage = ({
   onChangePassword,
   onSubmit,
   onNavigateSignUp,
+  onUseGuest,
 }: SignInPageProps) => {
   return (
-    <FormLayout title="Login">
-      <FieldLabel>メールアドレス</FieldLabel>
+    <FormLayout>
+      <TopSpacer />
+
       <Input
         autoCapitalize="none"
         autoCorrect={false}
@@ -37,7 +40,6 @@ export const SignInPage = ({
         onChangeText={onChangeEmail}
       />
 
-      <FieldLabel>パスワード</FieldLabel>
       <Input
         secureTextEntry
         placeholder="パスワード"
@@ -59,26 +61,28 @@ export const SignInPage = ({
       <SecondaryButton disabled={loading} onPress={onNavigateSignUp}>
         <SecondaryButtonText>アカウントを作成</SecondaryButtonText>
       </SecondaryButton>
+
+      <GuestButton disabled={loading} onPress={onUseGuest}>
+        <GuestText>ゲストとして利用する</GuestText>
+      </GuestButton>
     </FormLayout>
   );
 };
 
-const FieldLabel = styled.Text`
-  font-size: 14px;
-  color: #3c3c3c;
-  margin-bottom: 10px;
+const TopSpacer = styled.View`
+  height: 96px;
 `;
 
 const Input = styled.TextInput`
   width: 100%;
-  height: 56px;
+  height: 52px;
   border-width: 1.5px;
   border-color: #373737;
-  border-radius: 18px;
+  border-radius: 16px;
   padding: 0 18px;
-  margin-bottom: 16px;
-  background-color: rgba(255, 255, 255, 0.8);
-  font-size: 16px;
+  margin-bottom: 20px;
+  background-color: #ffffff;
+  font-size: 15px;
   color: #111111;
 `;
 
@@ -91,17 +95,17 @@ const ErrorText = styled.Text`
 
 const PrimaryButton = styled.TouchableOpacity`
   width: 100%;
-  height: 56px;
-  border-radius: 18px;
+  height: 52px;
+  border-radius: 16px;
   background-color: #191919;
   align-items: center;
   justify-content: center;
-  margin-top: 8px;
+  margin-top: 4px;
 `;
 
 const PrimaryButtonText = styled.Text`
   color: #ffffff;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 700;
 `;
 
@@ -109,23 +113,35 @@ const Divider = styled.View`
   width: 100%;
   height: 1px;
   background-color: #6e6e6e;
-  margin: 22px 0;
-  opacity: 0.5;
+  margin: 24px 0 34px;
+  opacity: 0.8;
 `;
 
 const SecondaryButton = styled.TouchableOpacity`
   width: 100%;
-  height: 54px;
-  border-radius: 18px;
+  height: 52px;
+  border-radius: 16px;
   border-width: 1.5px;
   border-color: #373737;
   align-items: center;
   justify-content: center;
-  background-color: rgba(255, 255, 255, 0.8);
+  background-color: #ffffff;
 `;
 
 const SecondaryButtonText = styled.Text`
   color: #2b2b2b;
-  font-size: 17px;
+  font-size: 16px;
+  font-weight: 600;
+`;
+
+const GuestButton = styled.TouchableOpacity`
+  margin-top: 28px;
+  align-self: center;
+`;
+
+const GuestText = styled.Text`
+  text-align: center;
+  color: #4a4a4a;
+  font-size: 15px;
   font-weight: 600;
 `;

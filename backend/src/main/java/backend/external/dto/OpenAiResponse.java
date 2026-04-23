@@ -24,4 +24,14 @@ public class OpenAiResponse {
 
     public List<WordEntry> getEntries() { return entries; }
     public void setEntries(List<WordEntry> entries) { this.entries = entries; }
+
+    @Override
+    public String toString() {
+        return "OpenAiResponse{" +
+                "inputWord='" + inputWord + '\'' +
+                ", candidates=" + candidates +
+                ", resolvedWord='" + resolvedWord + '\'' +
+                ", entries=" + entries +
+                '}';
+    }
 }

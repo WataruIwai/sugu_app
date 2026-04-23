@@ -25,6 +25,8 @@ public class OpenAiClient {
                 .input("""
                         Act as a dictionary assistant.
 
+                        The user input word is: %s
+
                         The user will input one word.
                         You must always return a JSON object.
 
@@ -33,47 +35,56 @@ public class OpenAiClient {
                         - "inputWord" = the user's original input
                         - "candidates" = []
                         - "resolvedWord" = the valid input word
-                        - If the word has multiple meanings:
-                            - "meaning" must be an array of meanings in English
-                            - "japanese" must be an array of corresponding Japanese translations
-                            - "example" must be an array of example sentences
-                        - If the word has only one meaning:
-                            - You may return a single string OR an array with one element (prefer array for consistency)
+                        - "entries" = an array of one or more objects
+                        - Each object in "entries" must contain:
+                            - "meaning_en" = English meaning
+                            - "meaning_ja" = corresponding Japanese translation
+                            - "example" = example sentence
 
                         2. If the input is misspelled or not a valid English word:
                         - "inputWord" = the user's original input
                         - "candidates" = exactly 3 similar English words
-                        - "resolvedWord" = null
+                        - "resolvedWord" = must use null
                         - "entries" = []
 
-                        Output format example:
+                        Output format example when the input is a valid English word:
                         {
                             "inputWord": "run",
                             "candidates": [],
                             "resolvedWord": "run",
                             "entries": [
                                 {
-                                    "meaning": "to move fast",
-                                    "japanese": "走る",
+                                    "meaning_en": "to move fast",
+                                    "meaning_ja": "走る",
                                     "example": "I run every day."
                                 },
                                 {
-                                    "meaning": "to operate or function",
-                                    "japanese": "動く、作動する",
+                                    "meaning_en": "to operate or function",
+                                    "meaning_ja": "動く、作動する",
                                     "example": "This machine runs smoothly."
                                 }
                             ]
+                        }
+
+                        Output format example when the input is misspelled or not a valid English word:
+                        {
+                            "inputWord": "appe",
+                            "candidates": ["apple", "apply", "ape"],
+                            "resolvedWord": null,
+                            "entries": []
                         }
                     """.formatted(word))
                 .text(OpenAiResponse.class).build();
 
         StructuredResponse<OpenAiResponse> response = client.responses().create(params);
-
-        return response.output().stream()
+        OpenAiResponse result = response.output().stream()
             .flatMap(item -> item.message().stream())
             .flatMap(message -> message.content().stream())
             .flatMap(content -> content.outputText().stream())
             .findFirst()
             .orElseThrow(() -> new RuntimeException("No structured output found"));
+
+        System.out.println(result);
+        return result;
     }
 }

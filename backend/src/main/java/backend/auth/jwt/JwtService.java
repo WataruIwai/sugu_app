@@ -7,6 +7,7 @@ import javax.crypto.SecretKey;
 
 import org.springframework.stereotype.Component;
 
+import backend.exception.UnauthorizedException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -42,7 +43,6 @@ public class JwtService {
                     .build()
                     .parseSignedClaims(token);
 
-            System.out.println("tokenは有効です");
             return true;
         } catch (Exception e) {
             return false;
@@ -65,6 +65,6 @@ public class JwtService {
             return this.extractUserId(token);
         }
 
-        throw new RuntimeException("再度ログインしてください");
+        throw new UnauthorizedException("Authentication required");
     }
 }

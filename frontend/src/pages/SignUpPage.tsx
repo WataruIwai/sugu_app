@@ -6,10 +6,14 @@ import { FormLayout } from "../layout/FormLayout";
 type SignUpPageProps = {
   email: string;
   password: string;
+  confirmPassword: string;
+  agreedToTerms: boolean;
   loading: boolean;
   errorMessage: string | null;
   onChangeEmail: (value: string) => void;
   onChangePassword: (value: string) => void;
+  onChangeConfirmPassword: (value: string) => void;
+  onToggleTerms: () => void;
   onSubmit: () => void;
   onNavigateSignIn: () => void;
 };
@@ -17,16 +21,21 @@ type SignUpPageProps = {
 export const SignUpPage = ({
   email,
   password,
+  confirmPassword,
+  agreedToTerms,
   loading,
   errorMessage,
   onChangeEmail,
   onChangePassword,
+  onChangeConfirmPassword,
+  onToggleTerms,
   onSubmit,
   onNavigateSignIn,
 }: SignUpPageProps) => {
   return (
-    <FormLayout title="Register" subtitle="アカウントを作成して単語帳を始めましょう。">
-      <FieldLabel>メールアドレス</FieldLabel>
+    <FormLayout>
+      <TopSpacer />
+
       <Input
         autoCapitalize="none"
         autoCorrect={false}
@@ -37,7 +46,6 @@ export const SignUpPage = ({
         onChangeText={onChangeEmail}
       />
 
-      <FieldLabel>パスワード</FieldLabel>
       <Input
         secureTextEntry
         placeholder="パスワード"
@@ -45,6 +53,22 @@ export const SignUpPage = ({
         value={password}
         onChangeText={onChangePassword}
       />
+
+      <Input
+        secureTextEntry
+        placeholder="確認用"
+        placeholderTextColor="#8c8c8c"
+        value={confirmPassword}
+        onChangeText={onChangeConfirmPassword}
+      />
+
+      <TermsArea>
+        <PolicyText>プライバシーポリシー</PolicyText>
+        <AgreementRow onPress={onToggleTerms}>
+          <AgreementText>利用規約に同意する</AgreementText>
+          <AgreementIndicator $active={agreedToTerms} />
+        </AgreementRow>
+      </TermsArea>
 
       {errorMessage ? <ErrorText>{errorMessage}</ErrorText> : null}
 
@@ -54,33 +78,63 @@ export const SignUpPage = ({
         </PrimaryButtonText>
       </PrimaryButton>
 
-      <FooterRow>
-        <FooterText>すでにアカウントをお持ちですか？</FooterText>
-        <FooterLink disabled={loading} onPress={onNavigateSignIn}>
-          <FooterLinkText>ログイン</FooterLinkText>
-        </FooterLink>
-      </FooterRow>
+      <FooterLink disabled={loading} onPress={onNavigateSignIn}>
+        <FooterLinkText>ログインへ戻る</FooterLinkText>
+      </FooterLink>
     </FormLayout>
   );
 };
 
-const FieldLabel = styled.Text`
-  font-size: 14px;
-  color: #3c3c3c;
-  margin-bottom: 10px;
+const TopSpacer = styled.View`
+  height: 96px;
 `;
 
 const Input = styled.TextInput`
   width: 100%;
-  height: 56px;
+  height: 52px;
   border-width: 1.5px;
   border-color: #373737;
-  border-radius: 18px;
+  border-radius: 16px;
   padding: 0 18px;
-  margin-bottom: 16px;
-  background-color: rgba(255, 255, 255, 0.8);
-  font-size: 16px;
+  margin-bottom: 18px;
+  background-color: #ffffff;
+  font-size: 15px;
   color: #111111;
+`;
+
+const TermsArea = styled.View`
+  align-items: center;
+  margin-top: 10px;
+  margin-bottom: 26px;
+`;
+
+const PolicyText = styled.Text`
+  color: #4a4a4a;
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 10px;
+`;
+
+const AgreementRow = styled.TouchableOpacity`
+  flex-direction: row;
+  align-items: center;
+`;
+
+const AgreementText = styled.Text`
+  color: #4a4a4a;
+  font-size: 15px;
+  font-weight: 600;
+`;
+
+const AgreementIndicator = styled.View<{ $active: boolean }>`
+  width: 14px;
+  height: 14px;
+  border-radius: 7px;
+  margin-left: 8px;
+  border-width: 1px;
+  border-color: #555555;
+  background-color: ${(props: { $active: boolean }) =>
+    props.$active ? "#191919" : "#ffffff"};
 `;
 
 const ErrorText = styled.Text`
@@ -92,12 +146,11 @@ const ErrorText = styled.Text`
 
 const PrimaryButton = styled.TouchableOpacity`
   width: 100%;
-  height: 56px;
-  border-radius: 18px;
+  height: 54px;
+  border-radius: 16px;
   background-color: #191919;
   align-items: center;
   justify-content: center;
-  margin-top: 8px;
 `;
 
 const PrimaryButtonText = styled.Text`
@@ -106,25 +159,13 @@ const PrimaryButtonText = styled.Text`
   font-weight: 700;
 `;
 
-const FooterRow = styled.View`
-  margin-top: 20px;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-`;
-
-const FooterText = styled.Text`
-  color: #4a4a4a;
-  font-size: 13px;
-`;
-
 const FooterLink = styled.TouchableOpacity`
-  margin-left: 8px;
+  margin-top: 18px;
+  align-self: center;
 `;
 
 const FooterLinkText = styled.Text`
-  color: #171717;
-  font-size: 13px;
-  font-weight: 700;
-  text-decoration-line: underline;
+  color: #4a4a4a;
+  font-size: 14px;
+  font-weight: 600;
 `;

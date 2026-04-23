@@ -1,6 +1,7 @@
 package backend.auth.controller;
 
-import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -12,6 +13,7 @@ import backend.auth.service.AuthService;
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
     private AuthService authService;
 
     public AuthController(AuthService authService) {
@@ -20,19 +22,17 @@ public class AuthController {
 
     @PostMapping("/signin")
     public String signIn(@RequestBody AuthRequest request) {
+        logger.info("POST /auth/signin received. email={}", request.getInputMail());
         String token = authService.signIn(request.getInputMail(), request.getInputPassword());
-        if(token == null) {
-            throw new RuntimeException("ログインに失敗しました");
-        }
+        logger.info("POST /auth/signin succeeded. email={}", request.getInputMail());
         return token;
     }
 
     @PostMapping("/signup")
     public String signUp(@RequestBody AuthRequest request) {
-        String token = authService.signUp(request.getInputMail(), request.getInputPassword());
-        if(token == null) {
-            throw new RuntimeException("ユーザー登録に失敗しました");
-        }
+        logger.info("POST /auth/signup received. email={}", request.getInputMail());
+        String token = authService.signUp(request.getInputMail(), request.getInputPassword(), request.isAgreedToTerms());
+        logger.info("POST /auth/signup succeeded. email={}", request.getInputMail());
         return token;
     }
 }
