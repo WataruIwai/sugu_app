@@ -47,7 +47,7 @@ public  class DictionaryService {
             usage = usageRepository.getUserUsage(userId).orElseGet(() -> usageRepository.createUserUsage(userId));
         }
 
-        if(!usage.canSearch()) throw new TooManyRequestsException("You have reached today's search limit");
+        if(!usage.canSearch() && !usage.canBonusSearch())throw new TooManyRequestsException("You have reached today's search limit");
 
         Optional<DictionaryWord> queryWordDataResult = dictionaryRepository.queryWordData(searchWord);
         //検索ロジック
@@ -58,11 +58,21 @@ public  class DictionaryService {
 
             //検索回数更新
             if(searchContext.getGuestId() != null) {
-                usage.consume();
-                usageRepository.updateGuestUsage((GuestUsageCount) usage);
+                if(usage.canSearch()) {
+                    usage.consume();
+                    usageRepository.updateGuestUsage((GuestUsageCount) usage);
+                } else {
+                    usage.consumeBonus();
+                    usageRepository.updateBonusGuestUsage((GuestUsageCount) usage);
+                }
             } else {
-                usage.consume();
-                usageRepository.updateUserUsage((UserUsageCount) usage);
+                if(usage.canSearch()) {
+                    usage.consume();
+                    usageRepository.updateUserUsage((UserUsageCount) usage);
+                } else {
+                    usage.consumeBonus();
+                    usageRepository.updateBonusUserUsage((UserUsageCount) usage);
+                }
             }
 
             return new WordResponse(word, entries, "SUCCESS");
@@ -81,11 +91,21 @@ public  class DictionaryService {
                 dictionaryRepository.createEntriesData(id, entries);
                 //検索回数更新
                 if(searchContext.getGuestId() != null) {
-                    usage.consume();
-                    usageRepository.updateGuestUsage((GuestUsageCount) usage);
+                    if(usage.canSearch()) {
+                        usage.consume();
+                        usageRepository.updateGuestUsage((GuestUsageCount) usage);
+                    } else {
+                        usage.consumeBonus();
+                        usageRepository.updateBonusGuestUsage((GuestUsageCount) usage);
+                    }
                 } else {
-                    usage.consume();
-                    usageRepository.updateUserUsage((UserUsageCount) usage);
+                    if(usage.canSearch()) {
+                        usage.consume();
+                        usageRepository.updateUserUsage((UserUsageCount) usage);
+                    } else {
+                        usage.consumeBonus();
+                        usageRepository.updateBonusUserUsage((UserUsageCount) usage);
+                    }
                 }
                 return new WordResponse(normalized, candidates, entries, "SUCCESS");
             }

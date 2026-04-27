@@ -11,14 +11,16 @@ public class UserUsageCount implements UsageCount {
     private int baseLimit;
     private int bonusCount;
     private int usedCount;
+    private int bonusUsedCount;
 
-    public UserUsageCount(long id, long userId, LocalDate usageDate, int baseLimit, int bonusCount, int usedCount) {
+    public UserUsageCount(long id, long userId, LocalDate usageDate, int baseLimit, int bonusCount, int usedCount, int bonusUsedCount) {
         this.id = id;
         this.userId = userId;
         this.usageDate = usageDate;
         this.baseLimit = baseLimit;
         this.bonusCount = bonusCount;
         this.usedCount = usedCount;
+        this.bonusUsedCount = bonusUsedCount;
     }
 
     @Override
@@ -27,8 +29,18 @@ public class UserUsageCount implements UsageCount {
     }
 
     @Override
+    public int getRemainingBonusCount() {
+        return bonusCount - bonusUsedCount;
+    }
+
+    @Override
     public boolean canSearch() {
         return getRemainingCount() > 0;
+    }
+
+    @Override
+    public boolean canBonusSearch() {
+        return getRemainingBonusCount() > 0;
     }
 
     @Override
@@ -37,6 +49,14 @@ public class UserUsageCount implements UsageCount {
             throw new IllegalStateException("Search limit exceeded");
         }
         this.usedCount++;
+    }
+
+    @Override
+    public void consumeBonus() {
+        if(!canBonusSearch()) {
+            throw new IllegalStateException("Bonus Search limit exceeded");
+        }
+        this.bonusUsedCount++;
     }
 
     public long getUserId() {
@@ -49,5 +69,9 @@ public class UserUsageCount implements UsageCount {
 
     public int getUsedCount() {
         return usedCount;
+    }
+
+    public int getBonusUsedCount() {
+        return bonusUsedCount;
     }
 }
