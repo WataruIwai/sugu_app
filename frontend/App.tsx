@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Platform } from "react-native";
 import {
     getTrackingPermissionsAsync,
@@ -14,6 +14,10 @@ import {
     saveGuestId,
     saveAuthToken,
 } from "./src/auth/tokenStorage";
+import {
+    canUseRewardedSearchBonusAd,
+    showRewardedSearchBonusAd,
+} from "./src/ads/rewardedSearchBonus";
 import { SignInPage } from "./src/pages/SignInPage";
 import { SignUpPage } from "./src/pages/SignUpPage";
 import { UpdateEmailPage } from "./src/pages/UpdateEmailPage";
@@ -21,6 +25,7 @@ import { UpdatePasswordPage } from "./src/pages/UpdatePasswordPage";
 import { VocabularyListPage } from "./src/pages/VocabularyListPage";
 import { WordDetailPage } from "./src/pages/WordDetailPage";
 import { SearchPage } from "./src/pages/SearchPage";
+import { BootSplashPage } from "./src/pages/BootSplashPage";
 import { SearchResult, WordDetailItem, WordItem } from "./src/types";
 
 const API_BASE_URL = "http://192.168.1.27:8080";
@@ -36,8 +41,10 @@ type Screen =
 type SearchReturnScreen = "signin" | "list" | "detail";
 
 const normalizeToken = (raw: string) => raw.trim().replace(/^"|"$/g, "");
+const MIN_BOOT_SPLASH_DURATION_MS = 2000;
 
 export default function App() {
+    const bootStartedAtRef = useRef(Date.now());
     const [screen, setScreen] = useState<Screen>("signin");
     const [token, setToken] = useState<string | null>(null);
     const [guestId, setGuestId] = useState<string | null>(null);
@@ -91,6 +98,15 @@ export default function App() {
         useState("アカウントを作成しませんか？");
     const [guestUpgradePromptMessage, setGuestUpgradePromptMessage] =
         useState("");
+    const [searchBonusPromptVisible, setSearchBonusPromptVisible] =
+        useState(false);
+    const [searchBonusPromptLoading, setSearchBonusPromptLoading] =
+        useState(false);
+    const [searchBonusPromptTitle, setSearchBonusPromptTitle] = useState("");
+    const [searchBonusPromptMessage, setSearchBonusPromptMessage] =
+        useState("");
+    const [searchBonusPromptErrorMessage, setSearchBonusPromptErrorMessage] =
+        useState<string | null>(null);
     const [attCheckCompleted, setAttCheckCompleted] = useState(false);
 
     const authenticated = useMemo(() => Boolean(token), [token]);
@@ -141,6 +157,8 @@ export default function App() {
     };
 
     const openGuestUpgradePrompt = (title: string, message: string) => {
+        setSearchBonusPromptVisible(false);
+        setSearchBonusPromptErrorMessage(null);
         setGuestUpgradePromptTitle(title);
         setGuestUpgradePromptMessage(message);
         setGuestUpgradePromptVisible(true);
@@ -148,6 +166,23 @@ export default function App() {
 
     const handleCloseGuestUpgradePrompt = () => {
         setGuestUpgradePromptVisible(false);
+    };
+
+    const openSearchBonusPrompt = (title: string, message: string) => {
+        setGuestUpgradePromptVisible(false);
+        setSearchBonusPromptTitle(title);
+        setSearchBonusPromptMessage(message);
+        setSearchBonusPromptErrorMessage(null);
+        setSearchBonusPromptVisible(true);
+    };
+
+    const handleCloseSearchBonusPrompt = () => {
+        if (searchBonusPromptLoading) {
+            return;
+        }
+
+        setSearchBonusPromptVisible(false);
+        setSearchBonusPromptErrorMessage(null);
     };
 
     const handleNavigateSignUpFromGuestPrompt = () => {
@@ -360,11 +395,15 @@ export default function App() {
     const handleOpenSearch = (from: SearchReturnScreen) => {
         setSearchReturnScreen(from);
         setGuestUpgradePromptVisible(false);
+        setSearchBonusPromptVisible(false);
+        setSearchBonusPromptErrorMessage(null);
         setScreen("search");
     };
 
     const handleBackFromSearch = () => {
         setGuestUpgradePromptVisible(false);
+        setSearchBonusPromptVisible(false);
+        setSearchBonusPromptErrorMessage(null);
         setScreen(searchReturnScreen);
     };
 
@@ -424,13 +463,14 @@ export default function App() {
                     serverMessage?.includes("Too many requests");
 
                 if (isSearchLimitError) {
-                    if (guestMode) {
-                        openGuestUpgradePrompt(
-                            "ゲスト検索の上限です",
-                            "本日のゲスト検索回数の上限に達しました。アカウントを作成すると、もっと検索できます。",
-                        );
-                    }
-                    throw new Error("今日はこれ以上検索できないです！");
+                    setSearchErrorMessage(null);
+                    openSearchBonusPrompt(
+                        "本日の検索上限です",
+                        canUseRewardedSearchBonusAd()
+                            ? "広告を視聴すると、追加で3回検索できます。"
+                            : "広告機能の準備ができていません。開発用ビルドで確認してください。",
+                    );
+                    return;
                 }
 
                 throw new Error(serverMessage ?? "検索に失敗しました。");
@@ -438,6 +478,8 @@ export default function App() {
 
             const data = JSON.parse(rawResponseText) as SearchResult;
             console.log(data);
+            setSearchBonusPromptVisible(false);
+            setSearchBonusPromptErrorMessage(null);
             setSearchResult(data);
         } catch (error) {
             setSearchErrorMessage(
@@ -509,6 +551,74 @@ export default function App() {
         }
     };
 
+    const grantSearchBonus = async () => {
+        const response = await fetch(`${API_BASE_URL}/api/usage/bonus`, {
+            method: "POST",
+            headers: {
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                ...(!token && guestId ? { "X-Guest-Id": guestId } : {}),
+            },
+        });
+
+        if (!response.ok) {
+            let serverMessage: string | null = null;
+
+            try {
+                const errorData = (await response.json()) as {
+                    message?: string;
+                };
+                serverMessage = errorData.message ?? null;
+            } catch {
+                serverMessage = null;
+            }
+
+            throw new Error(
+                serverMessage ??
+                    "広告視聴後の特典反映に失敗しました。もう一度お試しください。",
+            );
+        }
+    };
+
+    const handleWatchSearchBonusAd = async () => {
+        setSearchBonusPromptLoading(true);
+        setSearchBonusPromptErrorMessage(null);
+
+        try {
+            const adResult = await showRewardedSearchBonusAd();
+
+            if (adResult.status === "unavailable") {
+                setSearchBonusPromptErrorMessage(adResult.message);
+                return;
+            }
+
+            if (adResult.status === "error") {
+                setSearchBonusPromptErrorMessage(adResult.message);
+                return;
+            }
+
+            if (adResult.status === "dismissed") {
+                setSearchBonusPromptErrorMessage(
+                    "広告視聴が完了しませんでした。最後まで視聴すると検索回数が追加されます。",
+                );
+                return;
+            }
+
+            await grantSearchBonus();
+            setSearchBonusPromptVisible(false);
+            setSearchBonusPromptErrorMessage(null);
+            setSearchErrorMessage(null);
+            await handleDictionarySearch();
+        } catch (error) {
+            setSearchBonusPromptErrorMessage(
+                error instanceof Error
+                    ? error.message
+                    : "広告視聴後の特典反映に失敗しました。もう一度お試しください。",
+            );
+        } finally {
+            setSearchBonusPromptLoading(false);
+        }
+    };
+
     const handleLogout = async () => {
         await deleteAuthToken();
         setToken(null);
@@ -520,6 +630,8 @@ export default function App() {
         setErrorMessage(null);
         setListMenuOpen(false);
         setGuestUpgradePromptVisible(false);
+        setSearchBonusPromptVisible(false);
+        setSearchBonusPromptErrorMessage(null);
         setScreen("signin");
     };
 
@@ -540,6 +652,7 @@ export default function App() {
             setSearchResult(null);
             setSearchErrorMessage(null);
             setGuestUpgradePromptVisible(false);
+            setSearchBonusPromptVisible(false);
             handleOpenSearch("signin");
         } catch (error) {
             setErrorMessage("ゲスト利用の開始に失敗しました。");
@@ -742,6 +855,18 @@ export default function App() {
                 setScreen("signin");
                 setErrorMessage("ログインに失敗しました。");
             } finally {
+                const elapsedTime = Date.now() - bootStartedAtRef.current;
+                const remainingSplashTime = Math.max(
+                    0,
+                    MIN_BOOT_SPLASH_DURATION_MS - elapsedTime,
+                );
+
+                if (remainingSplashTime > 0) {
+                    await new Promise((resolve) => {
+                        setTimeout(resolve, remainingSplashTime);
+                    });
+                }
+
                 setBootstrapping(false);
             }
         };
@@ -808,19 +933,7 @@ export default function App() {
     }, [attCheckCompleted, bootstrapping]);
 
     if (bootstrapping) {
-        return (
-            <SignInPage
-                email=""
-                password=""
-                loading
-                errorMessage={null}
-                onChangeEmail={() => {}}
-                onChangePassword={() => {}}
-                onSubmit={() => {}}
-                onNavigateSignUp={() => {}}
-                onUseGuest={() => {}}
-            />
-        );
+        return <BootSplashPage />;
     }
 
     if (screen === "signup") {
@@ -885,6 +998,11 @@ export default function App() {
                 guestUpgradePromptVisible={guestUpgradePromptVisible}
                 guestUpgradePromptTitle={guestUpgradePromptTitle}
                 guestUpgradePromptMessage={guestUpgradePromptMessage}
+                searchBonusPromptVisible={searchBonusPromptVisible}
+                searchBonusPromptLoading={searchBonusPromptLoading}
+                searchBonusPromptTitle={searchBonusPromptTitle}
+                searchBonusPromptMessage={searchBonusPromptMessage}
+                searchBonusPromptErrorMessage={searchBonusPromptErrorMessage}
                 searchErrorMessage={searchErrorMessage}
                 searchResult={searchResult}
                 onBack={handleBackFromSearch}
@@ -892,9 +1010,11 @@ export default function App() {
                 onSubmitSearch={handleDictionarySearch}
                 onAddSearchResultToMyList={handleAddSearchResultToMyList}
                 onCloseGuestUpgradePrompt={handleCloseGuestUpgradePrompt}
+                onCloseSearchBonusPrompt={handleCloseSearchBonusPrompt}
                 onNavigateSignUpFromGuestPrompt={
                     handleNavigateSignUpFromGuestPrompt
                 }
+                onWatchSearchBonusAd={handleWatchSearchBonusAd}
             />
         );
     }

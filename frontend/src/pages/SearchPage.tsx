@@ -15,6 +15,11 @@ type SearchPageProps = {
     guestUpgradePromptVisible: boolean;
     guestUpgradePromptTitle: string;
     guestUpgradePromptMessage: string;
+    searchBonusPromptVisible: boolean;
+    searchBonusPromptLoading: boolean;
+    searchBonusPromptTitle: string;
+    searchBonusPromptMessage: string;
+    searchBonusPromptErrorMessage: string | null;
     searchErrorMessage: string | null;
     searchResult: SearchResult | null;
     onBack: () => void;
@@ -22,7 +27,9 @@ type SearchPageProps = {
     onSubmitSearch: () => void;
     onAddSearchResultToMyList: () => Promise<boolean>;
     onCloseGuestUpgradePrompt: () => void;
+    onCloseSearchBonusPrompt: () => void;
     onNavigateSignUpFromGuestPrompt: () => void;
+    onWatchSearchBonusAd: () => void;
 };
 
 export const SearchPage = ({
@@ -33,6 +40,11 @@ export const SearchPage = ({
     guestUpgradePromptVisible,
     guestUpgradePromptTitle,
     guestUpgradePromptMessage,
+    searchBonusPromptVisible,
+    searchBonusPromptLoading,
+    searchBonusPromptTitle,
+    searchBonusPromptMessage,
+    searchBonusPromptErrorMessage,
     searchErrorMessage,
     searchResult,
     onBack,
@@ -40,7 +52,9 @@ export const SearchPage = ({
     onSubmitSearch,
     onAddSearchResultToMyList,
     onCloseGuestUpgradePrompt,
+    onCloseSearchBonusPrompt,
     onNavigateSignUpFromGuestPrompt,
+    onWatchSearchBonusAd,
 }: SearchPageProps) => {
     const loadingProgress = useRef(new Animated.Value(0)).current;
     const [addedToMyList, setAddedToMyList] = useState(false);
@@ -119,9 +133,84 @@ export const SearchPage = ({
     }, [searchResult?.word, searchResult?.status]);
 
     const loadingLabel = `Looking up ${searchText.trim() || "word"}`;
+    const fixedOverlay =
+        guestUpgradePromptVisible || searchBonusPromptVisible ? (
+            <>
+                {guestUpgradePromptVisible ? (
+                    <GuestPromptOverlay>
+                        <GuestPromptCard>
+                            <GuestPromptTitle>
+                                {guestUpgradePromptTitle}
+                            </GuestPromptTitle>
+                            <GuestPromptMessage>
+                                {guestUpgradePromptMessage}
+                            </GuestPromptMessage>
+                            <GuestPromptActions>
+                                <GuestPromptSecondaryButton
+                                    activeOpacity={0.84}
+                                    onPress={onCloseGuestUpgradePrompt}
+                                >
+                                    <GuestPromptSecondaryText>
+                                        あとで
+                                    </GuestPromptSecondaryText>
+                                </GuestPromptSecondaryButton>
+                                <GuestPromptPrimaryButton
+                                    activeOpacity={0.84}
+                                    onPress={onNavigateSignUpFromGuestPrompt}
+                                >
+                                    <GuestPromptPrimaryText>
+                                        アカウントを作成
+                                    </GuestPromptPrimaryText>
+                                </GuestPromptPrimaryButton>
+                            </GuestPromptActions>
+                        </GuestPromptCard>
+                    </GuestPromptOverlay>
+                ) : null}
+
+                {searchBonusPromptVisible ? (
+                    <SearchBonusOverlay>
+                        <SearchBonusCard>
+                            <SearchBonusTitle>
+                                {searchBonusPromptTitle}
+                            </SearchBonusTitle>
+                            <SearchBonusMessage>
+                                {searchBonusPromptMessage}
+                            </SearchBonusMessage>
+                            {searchBonusPromptErrorMessage ? (
+                                <SearchBonusErrorText>
+                                    {searchBonusPromptErrorMessage}
+                                </SearchBonusErrorText>
+                            ) : null}
+                            <SearchBonusActions>
+                                <SearchBonusSecondaryButton
+                                    activeOpacity={0.84}
+                                    disabled={searchBonusPromptLoading}
+                                    onPress={onCloseSearchBonusPrompt}
+                                >
+                                    <SearchBonusSecondaryText>
+                                        あとで
+                                    </SearchBonusSecondaryText>
+                                </SearchBonusSecondaryButton>
+                                <SearchBonusPrimaryButton
+                                    activeOpacity={0.84}
+                                    disabled={searchBonusPromptLoading}
+                                    onPress={onWatchSearchBonusAd}
+                                >
+                                    <SearchBonusPrimaryText>
+                                        {searchBonusPromptLoading
+                                            ? "広告を準備中..."
+                                            : "広告を見る"}
+                                    </SearchBonusPrimaryText>
+                                </SearchBonusPrimaryButton>
+                            </SearchBonusActions>
+                        </SearchBonusCard>
+                    </SearchBonusOverlay>
+                ) : null}
+            </>
+        ) : null;
 
     return (
-        <ScreenLayout>
+        <ScreenLayout fixedOverlay={fixedOverlay}>
             <TopRow>
                 <BackButton onPress={onBack}>
                     <BackIcon>←</BackIcon>
@@ -262,37 +351,6 @@ export const SearchPage = ({
                     </ResultBlock>
                 ) : null}
             </ResultArea>
-
-            {guestUpgradePromptVisible ? (
-                <GuestPromptOverlay>
-                    <GuestPromptCard>
-                        <GuestPromptTitle>
-                            {guestUpgradePromptTitle}
-                        </GuestPromptTitle>
-                        <GuestPromptMessage>
-                            {guestUpgradePromptMessage}
-                        </GuestPromptMessage>
-                        <GuestPromptActions>
-                            <GuestPromptSecondaryButton
-                                activeOpacity={0.84}
-                                onPress={onCloseGuestUpgradePrompt}
-                            >
-                                <GuestPromptSecondaryText>
-                                    あとで
-                                </GuestPromptSecondaryText>
-                            </GuestPromptSecondaryButton>
-                            <GuestPromptPrimaryButton
-                                activeOpacity={0.84}
-                                onPress={onNavigateSignUpFromGuestPrompt}
-                            >
-                                <GuestPromptPrimaryText>
-                                    アカウントを作成
-                                </GuestPromptPrimaryText>
-                            </GuestPromptPrimaryButton>
-                        </GuestPromptActions>
-                    </GuestPromptCard>
-                </GuestPromptOverlay>
-            ) : null}
         </ScreenLayout>
     );
 };
@@ -593,6 +651,87 @@ const GuestPromptPrimaryButton = styled.TouchableOpacity`
 `;
 
 const GuestPromptPrimaryText = styled.Text`
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: 700;
+`;
+
+const SearchBonusOverlay = styled.View`
+    position: absolute;
+    top: 0px;
+    right: 0px;
+    bottom: 0px;
+    left: 0px;
+    background-color: rgba(0, 0, 0, 0.18);
+    align-items: center;
+    justify-content: center;
+    padding: 0 24px;
+`;
+
+const SearchBonusCard = styled.View`
+    width: 100%;
+    max-width: 360px;
+    border-radius: 24px;
+    background-color: #ffffff;
+    padding: 24px 22px 20px;
+`;
+
+const SearchBonusTitle = styled.Text`
+    color: #161616;
+    font-size: 22px;
+    line-height: 28px;
+    font-weight: 700;
+    margin-bottom: 12px;
+`;
+
+const SearchBonusMessage = styled.Text`
+    color: #555555;
+    font-size: 14px;
+    line-height: 21px;
+`;
+
+const SearchBonusErrorText = styled.Text`
+    color: #a93030;
+    font-size: 13px;
+    line-height: 19px;
+    margin-top: 12px;
+`;
+
+const SearchBonusActions = styled.View`
+    flex-direction: row;
+    justify-content: flex-end;
+    margin-top: 20px;
+`;
+
+const SearchBonusSecondaryButton = styled.TouchableOpacity`
+    min-width: 108px;
+    height: 44px;
+    border-radius: 14px;
+    border-width: 1px;
+    border-color: #cfcfcf;
+    align-items: center;
+    justify-content: center;
+    margin-right: 10px;
+    padding: 0 16px;
+`;
+
+const SearchBonusSecondaryText = styled.Text`
+    color: #2f2f2f;
+    font-size: 15px;
+    font-weight: 600;
+`;
+
+const SearchBonusPrimaryButton = styled.TouchableOpacity`
+    min-width: 132px;
+    height: 44px;
+    border-radius: 14px;
+    background-color: #1f1f1f;
+    align-items: center;
+    justify-content: center;
+    padding: 0 16px;
+`;
+
+const SearchBonusPrimaryText = styled.Text`
     color: #ffffff;
     font-size: 15px;
     font-weight: 700;

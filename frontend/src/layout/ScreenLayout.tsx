@@ -1,6 +1,9 @@
 import React, { PropsWithChildren, useState } from "react";
 import { LayoutChangeEvent, ScrollView } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+    SafeAreaView,
+    useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import styled from "styled-components/native";
 
 type ScreenLayoutProps = PropsWithChildren<{
@@ -23,6 +26,7 @@ export const ScreenLayout = ({
     lockScrollWhenContentFits = false,
     scrollable = true,
 }: ScreenLayoutProps) => {
+    const insets = useSafeAreaInsets();
     const [viewportHeight, setViewportHeight] = useState(0);
     const [contentHeight, setContentHeight] = useState(0);
 
@@ -42,7 +46,14 @@ export const ScreenLayout = ({
                 </ContentContainer>
                 {fixedTop ? <FixedTopWrap>{fixedTop}</FixedTopWrap> : null}
                 {fixedOverlay ? (
-                    <FixedOverlayWrap>{fixedOverlay}</FixedOverlayWrap>
+                    <FixedOverlayWrap
+                        style={{
+                            top: -insets.top,
+                            bottom: -insets.bottom,
+                        }}
+                    >
+                        {fixedOverlay}
+                    </FixedOverlayWrap>
                 ) : null}
                 {fixedBottom ? (
                     <FixedBottomWrap>{fixedBottom}</FixedBottomWrap>
@@ -74,7 +85,14 @@ export const ScreenLayout = ({
             </ScrollWrapper>
             {fixedTop ? <FixedTopWrap>{fixedTop}</FixedTopWrap> : null}
             {fixedOverlay ? (
-                <FixedOverlayWrap>{fixedOverlay}</FixedOverlayWrap>
+                <FixedOverlayWrap
+                    style={{
+                        top: -insets.top,
+                        bottom: -insets.bottom,
+                    }}
+                >
+                    {fixedOverlay}
+                </FixedOverlayWrap>
             ) : null}
             {fixedBottom ? (
                 <FixedBottomWrap>{fixedBottom}</FixedBottomWrap>
