@@ -4,6 +4,7 @@ import * as Speech from "expo-speech";
 import styled from "styled-components/native";
 
 import { ScreenLayout } from "../layout/ScreenLayout";
+import { WORD_DISPLAY_FONT_FAMILY } from "../styles/fonts";
 import { WordDetailItem } from "../types";
 
 type WordDetailPageProps = {
@@ -105,6 +106,7 @@ const BackIcon = styled.Text`
 `;
 
 const WordTitle = styled.Text`
+  font-family: ${WORD_DISPLAY_FONT_FAMILY};
   font-size: 62px;
   line-height: 68px;
   color: #111111;

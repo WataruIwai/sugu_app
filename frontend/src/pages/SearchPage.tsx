@@ -5,6 +5,7 @@ import { Animated, Easing } from "react-native";
 import styled from "styled-components/native";
 
 import { ScreenLayout } from "../layout/ScreenLayout";
+import { WORD_DISPLAY_FONT_FAMILY } from "../styles/fonts";
 import { SearchResult } from "../types";
 
 type SearchPageProps = {
@@ -211,31 +212,30 @@ export const SearchPage = ({
 
     return (
         <ScreenLayout fixedOverlay={fixedOverlay}>
-            <TopRow>
-                <BackButton onPress={onBack}>
+            <SearchHeader>
+                <HeaderBackButton onPress={onBack}>
                     <BackIcon>←</BackIcon>
-                </BackButton>
-            </TopRow>
-
-            <SearchTrack>
-                <SearchInput
-                    autoFocus
-                    editable={!searchLoading}
-                    placeholder="検索したい単語を入力"
-                    placeholderTextColor="#8f8f8f"
-                    returnKeyType="search"
-                    value={searchText}
-                    onChangeText={onChangeSearchText}
-                    onSubmitEditing={onSubmitSearch}
-                />
-                <ClearButton
-                    activeOpacity={0.86}
-                    disabled={searchLoading}
-                    onPress={() => onChangeSearchText("")}
-                >
-                    <ClearText>×</ClearText>
-                </ClearButton>
-            </SearchTrack>
+                </HeaderBackButton>
+                <SearchTrack>
+                    <SearchInput
+                        autoFocus
+                        editable={!searchLoading}
+                        placeholder="検索したい単語を入力"
+                        placeholderTextColor="#8f8f8f"
+                        returnKeyType="search"
+                        value={searchText}
+                        onChangeText={onChangeSearchText}
+                        onSubmitEditing={onSubmitSearch}
+                    />
+                    <ClearButton
+                        activeOpacity={0.86}
+                        disabled={searchLoading}
+                        onPress={() => onChangeSearchText("")}
+                    >
+                        <ClearText>×</ClearText>
+                    </ClearButton>
+                </SearchTrack>
+            </SearchHeader>
 
             <ResultArea showsVerticalScrollIndicator={false}>
                 {searchErrorMessage ? (
@@ -257,7 +257,12 @@ export const SearchPage = ({
                                         style={{
                                             backgroundColor:
                                                 loadingProgress.interpolate({
-                                                    inputRange: [start, peak, end, 1],
+                                                    inputRange: [
+                                                        start,
+                                                        peak,
+                                                        end,
+                                                        1,
+                                                    ],
                                                     outputRange: [
                                                         "#c7c7c7",
                                                         "#1f1f1f",
@@ -293,10 +298,13 @@ export const SearchPage = ({
                             </PronunciationButton>
                         ) : null}
 
-                        {searchResult.entries && searchResult.entries.length > 0 ? (
+                        {searchResult.entries &&
+                        searchResult.entries.length > 0 ? (
                             <Section>
                                 {searchResult.entries.map((entry, index) => (
-                                    <EntryCard key={`${entry.meaning_en}-${index}`}>
+                                    <EntryCard
+                                        key={`${entry.meaning_en}-${index}`}
+                                    >
                                         <EntryMeaning>
                                             {entry.meaning_en}
                                         </EntryMeaning>
@@ -316,7 +324,9 @@ export const SearchPage = ({
                             <CandidateSection>
                                 {searchResult.candidates.map((candidate) => (
                                     <CandidateChip key={candidate}>
-                                        <CandidateText>{candidate}</CandidateText>
+                                        <CandidateText>
+                                            {candidate}
+                                        </CandidateText>
                                     </CandidateChip>
                                 ))}
                                 <CandidateHintText>
@@ -355,15 +365,21 @@ export const SearchPage = ({
     );
 };
 
-const TopRow = styled.View`
-    flex-direction: row;
-    align-items: center;
+const SEARCH_TRACK_HEIGHT = 58;
+const BACK_BUTTON_HEIGHT = 28;
+const BACK_BUTTON_BOTTOM_TO_SEARCH_TRACK_TOP_GAP = 12;
+
+const SearchHeader = styled.View`
+    position: relative;
     margin-bottom: 24px;
 `;
 
-const BackButton = styled.TouchableOpacity`
+const HeaderBackButton = styled.TouchableOpacity`
+    position: absolute;
+    top: ${-(BACK_BUTTON_HEIGHT + BACK_BUTTON_BOTTOM_TO_SEARCH_TRACK_TOP_GAP)}px;
+    left: 0px;
     width: 28px;
-    height: 28px;
+    height: ${BACK_BUTTON_HEIGHT}px;
     justify-content: center;
 `;
 
@@ -375,7 +391,7 @@ const BackIcon = styled.Text`
 `;
 
 const SearchTrack = styled.View`
-    height: 58px;
+    height: ${SEARCH_TRACK_HEIGHT}px;
     border-radius: 29px;
     border-width: 1px;
     border-color: #c8c8c8;
@@ -383,7 +399,6 @@ const SearchTrack = styled.View`
     padding: 8px 10px 8px 18px;
     flex-direction: row;
     align-items: center;
-    margin-bottom: 24px;
 `;
 
 const SearchInput = styled.TextInput`
@@ -460,6 +475,7 @@ const ResultBlock = styled.View`
 `;
 
 const ResultWord = styled.Text`
+    font-family: ${WORD_DISPLAY_FONT_FAMILY};
     font-size: 28px;
     line-height: 34px;
     color: #111111;
@@ -537,6 +553,7 @@ const CandidateChip = styled.View`
 `;
 
 const CandidateText = styled.Text`
+    font-family: ${WORD_DISPLAY_FONT_FAMILY};
     color: #222222;
     font-size: 20px;
     line-height: 24px;

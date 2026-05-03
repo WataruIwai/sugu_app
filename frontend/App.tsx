@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Platform } from "react-native";
+import { Linking, Platform } from "react-native";
 import {
     getTrackingPermissionsAsync,
     requestTrackingPermissionsAsync,
@@ -29,6 +29,10 @@ import { BootSplashPage } from "./src/pages/BootSplashPage";
 import { SearchResult, WordDetailItem, WordItem } from "./src/types";
 
 const API_BASE_URL = "http://192.168.1.27:8080";
+const TERMS_URL =
+    "https://www.notion.so/3559a7163b3880239ec3ed3cfed7bbff?source=copy_link";
+const PRIVACY_POLICY_URL =
+    "https://www.notion.so/3559a7163b3880e4a470c45ee1e4e9cd?source=copy_link";
 
 type Screen =
     | "signin"
@@ -661,6 +665,22 @@ export default function App() {
         }
     };
 
+    const handleOpenTerms = async () => {
+        try {
+            await Linking.openURL(TERMS_URL);
+        } catch {
+            setErrorMessage("利用規約ページを開けませんでした。");
+        }
+    };
+
+    const handleOpenPrivacyPolicy = async () => {
+        try {
+            await Linking.openURL(PRIVACY_POLICY_URL);
+        } catch {
+            setErrorMessage("プライバシーポリシーページを開けませんでした。");
+        }
+    };
+
     const handleDeleteAccount = async () => {
         if (!token) {
             setErrorMessage("ログインが必要です。");
@@ -952,6 +972,8 @@ export default function App() {
                     setSignUpAgreedToTerms((current) => !current)
                 }
                 onSubmit={handleSignUp}
+                onOpenTerms={handleOpenTerms}
+                onOpenPrivacyPolicy={handleOpenPrivacyPolicy}
                 onNavigateSignIn={() => {
                     setErrorMessage(null);
                     setScreen("signin");

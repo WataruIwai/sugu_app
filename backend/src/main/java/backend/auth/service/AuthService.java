@@ -7,6 +7,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import backend.auth.apple.AppleIdentityTokenVerifier;
+import backend.auth.dto.AppleAuthRequest;
+import backend.auth.dto.VerifiedAppleUserInfo;
 import backend.auth.jwt.JwtService;
 import backend.exception.BadRequestException;
 import backend.exception.ConflictException;
@@ -19,10 +22,16 @@ public class AuthService {
     private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
     private UserRepository userRepository;
     private JwtService jwtService;
+    private AppleIdentityTokenVerifier appleIdentityTokenVerifier;
 
-    public AuthService(UserRepository userRepository, JwtService jwtService) {
+
+    public AuthService(
+        UserRepository userRepository,
+        JwtService jwtService,
+        AppleIdentityTokenVerifier appleIdentityTokenVerifier) {
         this.userRepository = userRepository;
         this.jwtService = jwtService;
+        this.appleIdentityTokenVerifier = appleIdentityTokenVerifier;
     }
 
     public String signIn(String inputMail, String inputPassword) {
@@ -76,16 +85,45 @@ public class AuthService {
         }
 
         String termsVersion = "v1";
-            LocalDateTime agreedTermsAt = LocalDateTime.now();
+        LocalDateTime agreedTermsAt = LocalDateTime.now();
 
-            String hashedPassword = BCrypt.hashpw(inputPassword, BCrypt.gensalt());
-            User newUser = new User(inputMail, hashedPassword, termsVersion, agreedTermsAt);
-            userRepository.createUser(newUser);
-            logger.info("AuthService.signUp created user record. email={}", inputMail);
+        String hashedPassword = BCrypt.hashpw(inputPassword, BCrypt.gensalt());
+        User newUser = new User(inputMail, hashedPassword, termsVersion, agreedTermsAt);
+        userRepository.createUser(newUser);
+        logger.info("AuthService.signUp created user record. email={}", inputMail);
 
-            User createdUser = userRepository.getUserByEmail(inputMail);
-            String token = jwtService.generateToken(createdUser.getId());
-            logger.info("AuthService.signUp succeeded. email={}, userId={}", inputMail, createdUser.getId());
-            return token;
+        User createdUser = userRepository.getUserByEmail(inputMail);
+        String token = jwtService.generateToken(createdUser.getId());
+        logger.info("AuthService.signUp succeeded. email={}, userId={}", inputMail, createdUser.getId());
+        return token;
     }
+
+    public String signInWithAppleAuth(AppleAuthRequest appleAuthRequest) {
+        logger.info("AuthService.signInWithAppleAuth started. identityToken={}", appleAuthRequest.getIdentityToken());
+
+        if (appleAuthRequest.getIdentityToken() == null || appleAuthRequest.getIdentityToken().isBlank()) {
+            logger.warn("AuthService.signInWithAppleAuth rejected: identityToken is blank");
+            throw new BadRequestException("Identity token is required");
+        }
+
+        if (!Boolean.TRUE.equals(appleAuthRequest.getAgreedToTerms())) {
+            logger.warn("AuthService.signInWithAppleAuth rejected: terms not agreed");
+            throw new BadRequestException("You must agree to the terms");
+        }
+
+        VerifiedAppleUserInfo verifiedAppleUserInfo = appleIdentityTokenVerifier.execute(appleAuthRequest.getIdentityToken());
+
+        User user = userRepository.getUserByProviderUserId(verifiedAppleUserInfo.getSub());
+
+        if (user == null) {
+            user = new User(verifiedAppleUserInfo.getEmail(), "apple", verifiedAppleUserInfo.getSub(), "v1", LocalDateTime.now());
+            long userId = userRepository.createUserWithAppleId(user);
+            String token = jwtService.generateToken(userId);
+            return token;
+        }
+
+        String token = jwtService.generateToken(user.getId());
+        return token;
+    }
+
 }

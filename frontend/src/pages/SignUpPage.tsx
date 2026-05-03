@@ -16,6 +16,8 @@ type SignUpPageProps = {
   onToggleTerms: () => void;
   onSubmit: () => void;
   onNavigateSignIn: () => void;
+  onOpenTerms: () => void;
+  onOpenPrivacyPolicy: () => void;
 };
 
 export const SignUpPage = ({
@@ -31,6 +33,8 @@ export const SignUpPage = ({
   onToggleTerms,
   onSubmit,
   onNavigateSignIn,
+  onOpenTerms,
+  onOpenPrivacyPolicy,
 }: SignUpPageProps) => {
   return (
     <FormLayout>
@@ -63,7 +67,15 @@ export const SignUpPage = ({
       />
 
       <TermsArea>
-        <PolicyText>プライバシーポリシー</PolicyText>
+        <PolicyLinksRow>
+          <PolicyLink activeOpacity={0.8} onPress={onOpenPrivacyPolicy}>
+            <PolicyText>プライバシーポリシー</PolicyText>
+          </PolicyLink>
+          <PolicyDivider>・</PolicyDivider>
+          <PolicyLink activeOpacity={0.8} onPress={onOpenTerms}>
+            <PolicyText>利用規約</PolicyText>
+          </PolicyLink>
+        </PolicyLinksRow>
         <AgreementRow onPress={onToggleTerms}>
           <AgreementText>利用規約に同意する</AgreementText>
           <AgreementIndicator $active={agreedToTerms} />
@@ -108,11 +120,25 @@ const TermsArea = styled.View`
   margin-bottom: 26px;
 `;
 
+const PolicyLinksRow = styled.View`
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 10px;
+`;
+
+const PolicyLink = styled.TouchableOpacity``;
+
 const PolicyText = styled.Text`
   color: #4a4a4a;
   font-size: 15px;
   font-weight: 600;
-  margin-bottom: 10px;
+`;
+
+const PolicyDivider = styled.Text`
+  color: #6a6a6a;
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 8px;
 `;
 
 const AgreementRow = styled.TouchableOpacity`

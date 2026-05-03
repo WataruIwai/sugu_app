@@ -1,9 +1,10 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { FlatList, ListRenderItem } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import styled from "styled-components/native";
 
 import { ScreenLayout } from "../layout/ScreenLayout";
+import { WORD_DISPLAY_FONT_FAMILY } from "../styles/fonts";
 import { WordItem } from "../types";
 
 type VocabularyListPageProps = {
@@ -34,6 +35,29 @@ export const VocabularyListPage = ({
     onLogout,
 }: VocabularyListPageProps) => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [listSearchText, setListSearchText] = useState("");
+
+    const normalizedSearchText = listSearchText.trim().toLowerCase();
+    const filteredWords = useMemo(() => {
+        if (!normalizedSearchText) {
+            return words;
+        }
+
+        return words.filter((word) => {
+            const searchableValues = [
+                word.word,
+                word.meaning,
+                word.meaningEnglish,
+                word.meaningJapanese,
+                word.memo,
+                word.pronunciation,
+            ];
+
+            return searchableValues.some((value) =>
+                value?.toLowerCase().includes(normalizedSearchText),
+            );
+        });
+    }, [normalizedSearchText, words]);
 
     const renderWordItem = useCallback<ListRenderItem<WordItem>>(
         ({ item }) => (
@@ -159,8 +183,27 @@ export const VocabularyListPage = ({
         >
             <ListWrap>
                 {errorMessage ? <ErrorText>{errorMessage}</ErrorText> : null}
+                <ListSearchTrack>
+                    <ListSearchInput
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        placeholder="登録した単語を検索"
+                        placeholderTextColor="#8f8f8f"
+                        returnKeyType="search"
+                        value={listSearchText}
+                        onChangeText={setListSearchText}
+                    />
+                    <ListSearchActionButton
+                        activeOpacity={0.86}
+                        onPress={() => setListSearchText("")}
+                    >
+                        <ListSearchActionText>
+                            {listSearchText ? "×" : "⌕"}
+                        </ListSearchActionText>
+                    </ListSearchActionButton>
+                </ListSearchTrack>
                 <WordsList
-                    data={words}
+                    data={filteredWords}
                     keyExtractor={keyExtractor}
                     showsVerticalScrollIndicator={false}
                     bounces={false}
@@ -174,6 +217,13 @@ export const VocabularyListPage = ({
                     updateCellsBatchingPeriod={16}
                     getItemLayout={getItemLayout}
                     renderItem={renderWordItem}
+                    ListEmptyComponent={
+                        words.length > 0 ? (
+                            <EmptyStateText>
+                                該当する単語が見つかりませんでした。
+                            </EmptyStateText>
+                        ) : null
+                    }
                 />
             </ListWrap>
         </ScreenLayout>
@@ -265,13 +315,45 @@ const DangerMenuLabel = styled.Text`
 
 const ListWrap = styled.View`
     flex: 1;
-    margin-bottom: 72;
-    border-bottom: none;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    margin-bottom: 72px;
 `;
 
 const WordsList = styled(FlatList<WordItem>)`
     flex: 1;
+`;
+
+const ListSearchTrack = styled.View`
+    height: 58px;
+    border-radius: 29px;
+    border-width: 1px;
+    border-color: #c8c8c8;
+    background-color: #f7f7f7;
+    padding: 8px 10px 8px 18px;
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 18px;
+`;
+
+const ListSearchInput = styled.TextInput`
+    flex: 1;
+    height: 100%;
+    color: #444444;
+    font-size: 14px;
+    padding-right: 14px;
+`;
+
+const ListSearchActionButton = styled.TouchableOpacity`
+    width: 38px;
+    height: 38px;
+    align-items: center;
+    justify-content: center;
+`;
+
+const ListSearchActionText = styled.Text`
+    color: #444444;
+    font-size: 18px;
+    line-height: 20px;
+    font-weight: 700;
 `;
 
 const WordRowSeparator = styled.View`
@@ -283,6 +365,14 @@ const ErrorText = styled.Text`
     font-size: 13px;
     line-height: 18px;
     margin-bottom: 18px;
+`;
+
+const EmptyStateText = styled.Text`
+    color: #6a6a6a;
+    font-size: 14px;
+    line-height: 20px;
+    text-align: center;
+    margin-top: 18px;
 `;
 
 const WordRow = styled.View`
@@ -305,6 +395,7 @@ const WordMain = styled.TouchableOpacity`
 `;
 
 const WordTitle = styled.Text`
+    font-family: ${WORD_DISPLAY_FONT_FAMILY};
     font-size: 18px;
     line-height: 22px;
     color: #202020;

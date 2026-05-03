@@ -2,12 +2,12 @@ import React from "react";
 import { ImageSourcePropType } from "react-native";
 import styled from "styled-components/native";
 
-const appLogo = require("../../assets/app-logo.png") as ImageSourcePropType;
+const bootWordmark = require("../../assets/boot-wordmark.png") as ImageSourcePropType;
 
 export const BootSplashPage = () => {
     return (
         <Container>
-            <Logo source={appLogo} resizeMode="contain" />
+            <Wordmark source={bootWordmark} resizeMode="contain" />
         </Container>
     );
 };
@@ -20,7 +20,7 @@ const Container = styled.View`
     padding: 24px;
 `;
 
-const Logo = styled.Image`
-    width: 220px;
-    height: 220px;
+const Wordmark = styled.Image`
+    width: 360px;
+    height: 202px;
 `;
