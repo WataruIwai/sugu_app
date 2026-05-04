@@ -279,6 +279,13 @@ export const SearchPage = ({
                     </LoadingState>
                 ) : null}
 
+                {!searchLoading &&
+                !searchResult &&
+                !searchErrorMessage &&
+                !searchText.trim() ? (
+                    <EmptyPromptText>What do you want to know?</EmptyPromptText>
+                ) : null}
+
                 {!searchLoading && searchResult ? (
                     <ResultBlock>
                         <ResultWord>{searchResult.word}</ResultWord>
@@ -436,6 +443,15 @@ const PanelErrorText = styled.Text`
     font-size: 14px;
     line-height: 20px;
     margin-bottom: 14px;
+`;
+
+const EmptyPromptText = styled.Text`
+    margin-top: 124px;
+    text-align: center;
+    color: #8f8f8f;
+    font-size: 22px;
+    line-height: 30px;
+    font-weight: 500;
 `;
 
 const LoadingState = styled.View`

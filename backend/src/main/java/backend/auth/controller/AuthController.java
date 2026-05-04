@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import backend.auth.dto.AuthRequest;
+import backend.auth.dto.AppleAuthRequest;
 import backend.auth.service.AuthService;
 
 @RestController
@@ -20,19 +20,12 @@ public class AuthController {
         this.authService = authService;
     }
 
-    @PostMapping("/signin")
-    public String signIn(@RequestBody AuthRequest request) {
-        logger.info("POST /auth/signin received. email={}", request.getInputMail());
-        String token = authService.signIn(request.getInputMail(), request.getInputPassword());
-        logger.info("POST /auth/signin succeeded. email={}", request.getInputMail());
-        return token;
-    }
-
-    @PostMapping("/signup")
-    public String signUp(@RequestBody AuthRequest request) {
-        logger.info("POST /auth/signup received. email={}", request.getInputMail());
-        String token = authService.signUp(request.getInputMail(), request.getInputPassword(), request.isAgreedToTerms());
-        logger.info("POST /auth/signup succeeded. email={}", request.getInputMail());
+    @PostMapping("/apple")
+    public String signInWithAppleAuth(@RequestBody AppleAuthRequest request) {
+        logger.info("POST /auth/apple received. identityTokenPresent={}",
+            request.getIdentityToken() != null && !request.getIdentityToken().isBlank());
+        String token = authService.signInWithAppleAuth(request);
+        logger.info("POST /auth/apple succeeded");
         return token;
     }
 }

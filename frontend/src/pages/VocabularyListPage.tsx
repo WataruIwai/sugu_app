@@ -13,8 +13,8 @@ type VocabularyListPageProps = {
     onPressWord: (wordId: number) => void;
     onDeleteWord: (wordId: number) => void;
     onOpenSearch: () => void;
-    onOpenChangeEmail: () => void;
-    onOpenChangePassword: () => void;
+    onOpenTerms: () => void;
+    onOpenPrivacyPolicy: () => void;
     onDeleteAccount: () => void;
     menuOpen: boolean;
     onToggleMenu: () => void;
@@ -27,8 +27,8 @@ export const VocabularyListPage = ({
     onPressWord,
     onDeleteWord,
     onOpenSearch,
-    onOpenChangeEmail,
-    onOpenChangePassword,
+    onOpenTerms,
+    onOpenPrivacyPolicy,
     onDeleteAccount,
     menuOpen,
     onToggleMenu,
@@ -107,19 +107,17 @@ export const VocabularyListPage = ({
                             </PrimaryMenuButton>
                             <PrimaryMenuButton
                                 activeOpacity={0.8}
-                                onPress={onOpenChangeEmail}
+                                onPress={onOpenPrivacyPolicy}
                             >
                                 <PrimaryMenuLabel>
-                                    メールアドレス変更
+                                    プライバシーポリシー
                                 </PrimaryMenuLabel>
                             </PrimaryMenuButton>
                             <PrimaryMenuButton
                                 activeOpacity={0.8}
-                                onPress={onOpenChangePassword}
+                                onPress={onOpenTerms}
                             >
-                                <PrimaryMenuLabel>
-                                    パスワード変更
-                                </PrimaryMenuLabel>
+                                <PrimaryMenuLabel>利用規約</PrimaryMenuLabel>
                             </PrimaryMenuButton>
                             <DangerMenuButton
                                 activeOpacity={0.8}

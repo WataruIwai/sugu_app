@@ -16,7 +16,11 @@ export const FormLayout = ({
   return (
     <ScreenLayout centered>
       <Content>
-        {title ? <Title>{title}</Title> : null}
+        {title ? (
+          <TitleWrap>
+            <Title>{title}</Title>
+          </TitleWrap>
+        ) : null}
         {subtitle ? <Subtitle>{subtitle}</Subtitle> : null}
         {children}
       </Content>
@@ -29,12 +33,18 @@ const Content = styled.View`
   padding: 8px 0;
 `;
 
+const TitleWrap = styled.View`
+  width: 100%;
+  align-items: center;
+`;
+
 const Title = styled.Text`
   font-size: 34px;
   line-height: 40px;
   font-weight: 700;
   color: #171717;
   margin-bottom: 12px;
+  text-align: center;
 `;
 
 const Subtitle = styled.Text`

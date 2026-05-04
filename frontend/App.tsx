@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Linking, Platform } from "react-native";
+import * as AppleAuthentication from "expo-apple-authentication";
 import {
     getTrackingPermissionsAsync,
     requestTrackingPermissionsAsync,
@@ -19,9 +20,6 @@ import {
     showRewardedSearchBonusAd,
 } from "./src/ads/rewardedSearchBonus";
 import { SignInPage } from "./src/pages/SignInPage";
-import { SignUpPage } from "./src/pages/SignUpPage";
-import { UpdateEmailPage } from "./src/pages/UpdateEmailPage";
-import { UpdatePasswordPage } from "./src/pages/UpdatePasswordPage";
 import { VocabularyListPage } from "./src/pages/VocabularyListPage";
 import { WordDetailPage } from "./src/pages/WordDetailPage";
 import { SearchPage } from "./src/pages/SearchPage";
@@ -36,12 +34,9 @@ const PRIVACY_POLICY_URL =
 
 type Screen =
     | "signin"
-    | "signup"
     | "list"
     | "detail"
-    | "search"
-    | "changeEmail"
-    | "changePassword";
+    | "search";
 type SearchReturnScreen = "signin" | "list" | "detail";
 
 const normalizeToken = (raw: string) => raw.trim().replace(/^"|"$/g, "");
@@ -54,29 +49,7 @@ export default function App() {
     const [guestId, setGuestId] = useState<string | null>(null);
     const [bootstrapping, setBootstrapping] = useState(true);
 
-    const [signInEmail, setSignInEmail] = useState("");
-    const [signInPassword, setSignInPassword] = useState("");
-    const [signUpEmail, setSignUpEmail] = useState("");
-    const [signUpPassword, setSignUpPassword] = useState("");
-    const [signUpConfirmPassword, setSignUpConfirmPassword] = useState("");
-    const [signUpAgreedToTerms, setSignUpAgreedToTerms] = useState(false);
-
-    const [updateEmailValue, setUpdateEmailValue] = useState("");
-    const [updateEmailLoading, setUpdateEmailLoading] = useState(false);
-    const [updateEmailErrorMessage, setUpdateEmailErrorMessage] = useState<
-        string | null
-    >(null);
-    const [updateEmailSuccessMessage, setUpdateEmailSuccessMessage] = useState<
-        string | null
-    >(null);
-
-    const [currentPasswordValue, setCurrentPasswordValue] = useState("");
-    const [newPasswordValue, setNewPasswordValue] = useState("");
-    const [updatePasswordLoading, setUpdatePasswordLoading] = useState(false);
-    const [updatePasswordErrorMessage, setUpdatePasswordErrorMessage] =
-        useState<string | null>(null);
-    const [updatePasswordSuccessMessage, setUpdatePasswordSuccessMessage] =
-        useState<string | null>(null);
+    const [signInAgreedToTerms, setSignInAgreedToTerms] = useState(false);
 
     const [words, setWords] = useState<WordItem[]>([]);
     const [selectedWord, setSelectedWord] = useState<WordDetailItem | null>(
@@ -192,102 +165,104 @@ export default function App() {
     const handleNavigateSignUpFromGuestPrompt = () => {
         setGuestUpgradePromptVisible(false);
         setErrorMessage(null);
-        setScreen("signup");
+        setScreen("signin");
     };
 
-    const handleSignIn = async () => {
-        setLoading(true);
-        setErrorMessage(null);
-        console.log("Handle sign in started.");
-        console.log("Sign in target:", `${API_BASE_URL}/auth/signin`);
-        console.log("Sign in email:", signInEmail);
-
-        try {
-            console.log("Sign in request sending...");
-            const response = await fetch(`${API_BASE_URL}/auth/signin`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    inputMail: signInEmail,
-                    inputPassword: signInPassword,
-                }),
-            });
-
-            console.log("Sign in response received:", response.status);
-
-            if (!response.ok) {
-                const rawResponseText = await response.text();
-                console.log("Sign in failed response body:", rawResponseText);
-                throw new Error("ログインに失敗しました。");
-            }
-
-            const currentToken = normalizeToken(await response.text());
-            console.log("Sign in succeeded. token acquired.");
-            console.log("Token length:", currentToken.length);
-            console.log("Saving auth token...");
-            await saveAuthToken(currentToken);
-            console.log("Auth token saved.");
-            setToken(currentToken);
-            console.log("Token state updated.");
-            setScreen("list");
-            console.log("Screen changed to list.");
-            await fetchWords(currentToken);
-            console.log("Handle sign in completed.");
-        } catch (error) {
-            console.log("Handle sign in failed:", error);
-            setErrorMessage(
-                error instanceof Error
-                    ? error.message
-                    : "ログインに失敗しました。",
-            );
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleSignUp = async () => {
+    const handleContinueWithApple = async (agreedToTerms: boolean) => {
         setLoading(true);
         setErrorMessage(null);
 
         try {
-            if (signUpPassword !== signUpConfirmPassword) {
-                throw new Error("確認用パスワードが一致しません。");
-            }
-
-            if (!signUpAgreedToTerms) {
+            if (!agreedToTerms) {
                 throw new Error("利用規約への同意が必要です。");
             }
 
-            const response = await fetch(`${API_BASE_URL}/auth/signup`, {
+            if (Platform.OS !== "ios") {
+                throw new Error("Sign in with Apple は iOS でのみ利用できます。");
+            }
+
+            const appleAuthAvailable =
+                await AppleAuthentication.isAvailableAsync();
+
+            if (!appleAuthAvailable) {
+                throw new Error(
+                    "この端末では Sign in with Apple を利用できません。",
+                );
+            }
+
+            const credential = await AppleAuthentication.signInAsync({
+                requestedScopes: [
+                    AppleAuthentication.AppleAuthenticationScope.EMAIL,
+                    AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+                ],
+            });
+
+            if (!credential.identityToken) {
+                throw new Error(
+                    "Apple ID 認証トークンを取得できませんでした。",
+                );
+            }
+
+            const response = await fetch(`${API_BASE_URL}/auth/apple`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    inputMail: signUpEmail,
-                    inputPassword: signUpPassword,
-                    agreedToTerms: signUpAgreedToTerms,
+                    identityToken: credential.identityToken,
+                    agreedToTerms,
                 }),
             });
 
             if (!response.ok) {
-                throw new Error("アカウント作成に失敗しました。");
+                const rawResponseText = await response.text();
+
+                try {
+                    const errorData = JSON.parse(rawResponseText) as {
+                        message?: string;
+                    };
+                    throw new Error(
+                        errorData.message ?? "Apple ログインに失敗しました。",
+                    );
+                } catch {
+                    throw new Error("Apple ログインに失敗しました。");
+                }
             }
 
             const currentToken = normalizeToken(await response.text());
-            console.log("Sign up succeeded. token acquired.");
             await saveAuthToken(currentToken);
             setToken(currentToken);
             setScreen("list");
             await fetchWords(currentToken);
         } catch (error) {
-            console.log("Handle sign up failed:", error);
+            console.log("Apple sign in error:", error);
+            console.log(
+                "Apple sign in error code:",
+                typeof error === "object" &&
+                    error !== null &&
+                    "code" in error
+                    ? error.code
+                    : null,
+            );
+            console.log(
+                "Apple sign in error message:",
+                error instanceof Error ? error.message : null,
+            );
+
+            if (
+                typeof error === "object" &&
+                error !== null &&
+                "code" in error &&
+                error.code === "ERR_REQUEST_CANCELED"
+            ) {
+                setErrorMessage(null);
+                return;
+            }
+
             setErrorMessage(
                 error instanceof Error
                     ? error.message
-                    : "アカウント作成に失敗しました。",
+                    : "Apple ログインに失敗しました。",
             );
         } finally {
             setLoading(false);
@@ -365,34 +340,6 @@ export default function App() {
     const handleBackToList = () => {
         setSelectedWord(null);
         setListMenuOpen(false);
-        setScreen("list");
-    };
-
-    const handleOpenChangeEmail = () => {
-        setUpdateEmailErrorMessage(null);
-        setUpdateEmailSuccessMessage(null);
-        setListMenuOpen(false);
-        setScreen("changeEmail");
-    };
-
-    const handleOpenChangePassword = () => {
-        setUpdatePasswordErrorMessage(null);
-        setUpdatePasswordSuccessMessage(null);
-        setListMenuOpen(false);
-        setScreen("changePassword");
-    };
-
-    const handleBackFromChangeEmail = () => {
-        setUpdateEmailErrorMessage(null);
-        setUpdateEmailSuccessMessage(null);
-        setListMenuOpen(true);
-        setScreen("list");
-    };
-
-    const handleBackFromChangePassword = () => {
-        setUpdatePasswordErrorMessage(null);
-        setUpdatePasswordSuccessMessage(null);
-        setListMenuOpen(true);
         setScreen("list");
     };
 
@@ -729,122 +676,6 @@ export default function App() {
         }
     };
 
-    const handleUpdateEmail = async () => {
-        if (!token) {
-            setUpdateEmailErrorMessage("ログインが必要です。");
-            return;
-        }
-
-        const trimmedEmail = updateEmailValue.trim();
-
-        if (!trimmedEmail) {
-            setUpdateEmailErrorMessage("メールアドレスを入力してください。");
-            setUpdateEmailSuccessMessage(null);
-            return;
-        }
-
-        setUpdateEmailLoading(true);
-        setUpdateEmailErrorMessage(null);
-        setUpdateEmailSuccessMessage(null);
-
-        try {
-            const response = await fetch(`${API_BASE_URL}/user/email`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify({
-                    email: trimmedEmail,
-                }),
-            });
-
-            if (!response.ok) {
-                throw new Error("メールアドレスの変更に失敗しました。");
-            }
-
-            setUpdateEmailSuccessMessage("メールアドレスを変更しました。");
-            setUpdateEmailValue("");
-            setListMenuOpen(false);
-            setScreen("list");
-        } catch (error) {
-            setUpdateEmailErrorMessage(
-                error instanceof Error
-                    ? error.message
-                    : "メールアドレスの変更に失敗しました。",
-            );
-        } finally {
-            setUpdateEmailLoading(false);
-        }
-    };
-
-    const handleUpdatePassword = async () => {
-        if (!token) {
-            setUpdatePasswordErrorMessage("ログインが必要です。");
-            return;
-        }
-
-        const currentPassword = currentPasswordValue.trim();
-        const newPassword = newPasswordValue.trim();
-
-        if (!currentPassword || !newPassword) {
-            setUpdatePasswordErrorMessage(
-                "現在のパスワードと新しいパスワードを入力してください。",
-            );
-            setUpdatePasswordSuccessMessage(null);
-            return;
-        }
-
-        setUpdatePasswordLoading(true);
-        setUpdatePasswordErrorMessage(null);
-        setUpdatePasswordSuccessMessage(null);
-
-        try {
-            const response = await fetch(`${API_BASE_URL}/user/password`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify({
-                    currentPassword,
-                    newPassword,
-                }),
-            });
-
-            if (!response.ok) {
-                let serverMessage: string | null = null;
-
-                try {
-                    const errorData = (await response.json()) as {
-                        message?: string;
-                    };
-                    serverMessage = errorData.message ?? null;
-                } catch {
-                    serverMessage = null;
-                }
-
-                throw new Error(
-                    serverMessage ?? "パスワードの変更に失敗しました。",
-                );
-            }
-
-            setUpdatePasswordSuccessMessage("パスワードを変更しました。");
-            setCurrentPasswordValue("");
-            setNewPasswordValue("");
-            setListMenuOpen(false);
-            setScreen("list");
-        } catch (error) {
-            setUpdatePasswordErrorMessage(
-                error instanceof Error
-                    ? error.message
-                    : "パスワードの変更に失敗しました。",
-            );
-        } finally {
-            setUpdatePasswordLoading(false);
-        }
-    };
-
     useEffect(() => {
         if (!bootstrapping) {
             return;
@@ -956,32 +787,6 @@ export default function App() {
         return <BootSplashPage />;
     }
 
-    if (screen === "signup") {
-        return (
-            <SignUpPage
-                email={signUpEmail}
-                password={signUpPassword}
-                confirmPassword={signUpConfirmPassword}
-                agreedToTerms={signUpAgreedToTerms}
-                loading={loading}
-                errorMessage={errorMessage}
-                onChangeEmail={setSignUpEmail}
-                onChangePassword={setSignUpPassword}
-                onChangeConfirmPassword={setSignUpConfirmPassword}
-                onToggleTerms={() =>
-                    setSignUpAgreedToTerms((current) => !current)
-                }
-                onSubmit={handleSignUp}
-                onOpenTerms={handleOpenTerms}
-                onOpenPrivacyPolicy={handleOpenPrivacyPolicy}
-                onNavigateSignIn={() => {
-                    setErrorMessage(null);
-                    setScreen("signin");
-                }}
-            />
-        );
-    }
-
     if (screen === "list") {
         return (
             <VocabularyListPage
@@ -990,8 +795,8 @@ export default function App() {
                 onPressWord={handleSelectWord}
                 onDeleteWord={handleDeleteWord}
                 onOpenSearch={() => handleOpenSearch("list")}
-                onOpenChangeEmail={handleOpenChangeEmail}
-                onOpenChangePassword={handleOpenChangePassword}
+                onOpenTerms={handleOpenTerms}
+                onOpenPrivacyPolicy={handleOpenPrivacyPolicy}
                 onDeleteAccount={handleDeleteAccount}
                 menuOpen={listMenuOpen}
                 onToggleMenu={() => setListMenuOpen((current) => !current)}
@@ -1041,73 +846,19 @@ export default function App() {
         );
     }
 
-    if (screen === "changeEmail") {
-        return (
-            <UpdateEmailPage
-                email={updateEmailValue}
-                loading={updateEmailLoading}
-                errorMessage={updateEmailErrorMessage}
-                successMessage={updateEmailSuccessMessage}
-                onChangeEmail={(value) => {
-                    setUpdateEmailValue(value);
-                    if (updateEmailErrorMessage) {
-                        setUpdateEmailErrorMessage(null);
-                    }
-                    if (updateEmailSuccessMessage) {
-                        setUpdateEmailSuccessMessage(null);
-                    }
-                }}
-                onSubmit={handleUpdateEmail}
-                onBack={handleBackFromChangeEmail}
-            />
-        );
-    }
-
-    if (screen === "changePassword") {
-        return (
-            <UpdatePasswordPage
-                currentPassword={currentPasswordValue}
-                newPassword={newPasswordValue}
-                loading={updatePasswordLoading}
-                errorMessage={updatePasswordErrorMessage}
-                successMessage={updatePasswordSuccessMessage}
-                onChangeCurrentPassword={(value) => {
-                    setCurrentPasswordValue(value);
-                    if (updatePasswordErrorMessage) {
-                        setUpdatePasswordErrorMessage(null);
-                    }
-                    if (updatePasswordSuccessMessage) {
-                        setUpdatePasswordSuccessMessage(null);
-                    }
-                }}
-                onChangeNewPassword={(value) => {
-                    setNewPasswordValue(value);
-                    if (updatePasswordErrorMessage) {
-                        setUpdatePasswordErrorMessage(null);
-                    }
-                    if (updatePasswordSuccessMessage) {
-                        setUpdatePasswordSuccessMessage(null);
-                    }
-                }}
-                onSubmit={handleUpdatePassword}
-                onBack={handleBackFromChangePassword}
-            />
-        );
-    }
-
     return (
         <SignInPage
-            email={signInEmail}
-            password={signInPassword}
+            agreedToTerms={signInAgreedToTerms}
             loading={loading}
             errorMessage={errorMessage}
-            onChangeEmail={setSignInEmail}
-            onChangePassword={setSignInPassword}
-            onSubmit={handleSignIn}
-            onNavigateSignUp={() => {
-                setErrorMessage(null);
-                setScreen("signup");
-            }}
+            onToggleTerms={() =>
+                setSignInAgreedToTerms((current) => !current)
+            }
+            onSubmitApple={() =>
+                void handleContinueWithApple(signInAgreedToTerms)
+            }
+            onOpenTerms={handleOpenTerms}
+            onOpenPrivacyPolicy={handleOpenPrivacyPolicy}
             onUseGuest={handleUseGuest}
         />
     );
