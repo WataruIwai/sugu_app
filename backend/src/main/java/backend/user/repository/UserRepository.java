@@ -22,7 +22,7 @@ public class UserRepository {
     }
 
     public User getUser(long userId) {
-        String sql = "SELECT id, email, password_hash, auth_provider, provider_user_id, created_at, updated_at FROM users WHERE id = ?";
+        String sql = "SELECT id, email, auth_provider, provider_user_id FROM users WHERE id = ?";
 
         try (
             Connection connection = dataSource.getConnection();
@@ -35,7 +35,7 @@ public class UserRepository {
                     return new User(
                         resultSet.getLong("id"),
                         resultSet.getString("email"),
-                        resultSet.getString("password_hash"),
+                        null,
                         resultSet.getString("auth_provider"),
                         resultSet.getString("provider_user_id")
                     );
@@ -62,7 +62,7 @@ public class UserRepository {
     }
 
     public User getUserByProviderUserId(String providerUserId) {
-        String sql = "SELECT id, email, password_hash, auth_provider, provider_user_id, created_at, updated_at FROM users WHERE provider_user_id = ?";
+        String sql = "SELECT id, email, auth_provider, provider_user_id FROM users WHERE provider_user_id = ?";
 
         try (
             Connection connection = dataSource.getConnection();
@@ -75,7 +75,7 @@ public class UserRepository {
                     return new User(
                         resultSet.getLong("id"),
                         resultSet.getString("email"),
-                        resultSet.getString("password_hash"),
+                        null,
                         resultSet.getString("auth_provider"),
                         resultSet.getString("provider_user_id")
                     );
