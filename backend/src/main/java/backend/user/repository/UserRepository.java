@@ -8,6 +8,8 @@ import java.sql.Timestamp;
 
 import javax.sql.DataSource;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Repository;
 
 import backend.exception.DatabaseException;
@@ -15,6 +17,7 @@ import backend.user.domain.User;
 
 @Repository
 public class UserRepository {
+    private static final Logger logger = LoggerFactory.getLogger(UserRepository.class);
     private final DataSource dataSource;
 
     public UserRepository(DataSource dataSource) {
@@ -83,6 +86,13 @@ public class UserRepository {
                 return null;
             }
         } catch (SQLException e) {
+            logger.error(
+                "UserRepository.getUserByProviderUserId failed. providerUserId={}, sqlState={}, message={}",
+                providerUserId,
+                e.getSQLState(),
+                e.getMessage(),
+                e
+            );
             throw new DatabaseException("Failed to get user by provider user id", e);
         }
     }
