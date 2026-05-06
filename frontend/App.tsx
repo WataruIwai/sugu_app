@@ -11,9 +11,11 @@ import {
     deleteAuthToken,
     getGuestId,
     getAuthToken,
+    getOnboardingCompleted,
     saveAttPermissionRequested,
     saveGuestId,
     saveAuthToken,
+    saveOnboardingCompleted,
 } from "./src/auth/tokenStorage";
 import {
     canUseRewardedSearchBonusAd,
@@ -24,6 +26,7 @@ import { VocabularyListPage } from "./src/pages/VocabularyListPage";
 import { WordDetailPage } from "./src/pages/WordDetailPage";
 import { SearchPage } from "./src/pages/SearchPage";
 import { BootSplashPage } from "./src/pages/BootSplashPage";
+import { OnboardingPage } from "./src/pages/OnboardingPage";
 import { SearchResult, WordDetailItem, WordItem } from "./src/types";
 
 const API_BASE_URL = "http://192.168.1.27:8080";
@@ -33,6 +36,7 @@ const PRIVACY_POLICY_URL =
     "https://www.notion.so/3559a7163b3880e4a470c45ee1e4e9cd?source=copy_link";
 
 type Screen =
+    | "onboarding"
     | "signin"
     | "list"
     | "detail"
@@ -41,6 +45,7 @@ type SearchReturnScreen = "signin" | "list" | "detail";
 
 const normalizeToken = (raw: string) => raw.trim().replace(/^"|"$/g, "");
 const MIN_BOOT_SPLASH_DURATION_MS = 2000;
+const FORCE_SHOW_ONBOARDING = false;
 
 export default function App() {
     const bootStartedAtRef = useRef(Date.now());
@@ -676,6 +681,11 @@ export default function App() {
         }
     };
 
+    const handleCompleteOnboarding = async () => {
+        await saveOnboardingCompleted();
+        setScreen("signin");
+    };
+
     useEffect(() => {
         if (!bootstrapping) {
             return;
@@ -685,12 +695,23 @@ export default function App() {
             try {
                 const storedToken = await getAuthToken();
                 const storedGuestId = await getGuestId();
+                const onboardingCompleted = await getOnboardingCompleted();
 
                 if (storedGuestId) {
                     setGuestId(storedGuestId);
                 }
 
+                if (FORCE_SHOW_ONBOARDING) {
+                    setScreen("onboarding");
+                    return;
+                }
+
                 if (!storedToken) {
+                    setScreen(
+                        onboardingCompleted === "true"
+                            ? "signin"
+                            : "onboarding",
+                    );
                     return;
                 }
 
@@ -844,6 +865,10 @@ export default function App() {
                 onWatchSearchBonusAd={handleWatchSearchBonusAd}
             />
         );
+    }
+
+    if (screen === "onboarding") {
+        return <OnboardingPage onComplete={() => void handleCompleteOnboarding()} />;
     }
 
     return (

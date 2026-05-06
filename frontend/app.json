@@ -1,6 +1,6 @@
 {
     "expo": {
-        "name": "frontend",
+        "name": "Sugu",
         "slug": "frontend",
         "version": "1.0.0",
         "orientation": "portrait",
@@ -14,18 +14,10 @@
         "ios": {
             "supportsTablet": true,
             "usesAppleSignIn": true,
-            "bundleIdentifier": "com.sugu.ios"
-        },
-        "android": {
-            "adaptiveIcon": {
-                "backgroundColor": "#E6F4FE",
-                "foregroundImage": "./assets/android-icon-foreground.png",
-                "backgroundImage": "./assets/android-icon-background.png",
-                "monochromeImage": "./assets/android-icon-monochrome.png"
-            },
-            "predictiveBackGestureEnabled": false,
-            "permissions": ["com.google.android.gms.permission.AD_ID"],
-            "package": "com.watatech.frontend"
+            "bundleIdentifier": "com.sugu.ios",
+            "infoPlist": {
+                "CFBundleDisplayName": "Sugu"
+            }
         },
         "web": {
             "favicon": "./assets/favicon.png"

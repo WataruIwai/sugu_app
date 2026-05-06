@@ -5,22 +5,21 @@ import java.util.Date;
 
 import javax.crypto.SecretKey;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import backend.exception.UnauthorizedException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-import io.github.cdimascio.dotenv.Dotenv;
 
 @Component
 public class JwtService {
     final private SecretKey key;
-    Dotenv dotenv = Dotenv.load();
 
-    public JwtService() {
+    public JwtService(@Value("${jwt.secret}") String jwtSecret) {
         this.key = Keys.hmacShaKeyFor(
-            dotenv.get("JWT_SECRET").getBytes(StandardCharsets.UTF_8)
+            jwtSecret.getBytes(StandardCharsets.UTF_8)
         );
     }
 

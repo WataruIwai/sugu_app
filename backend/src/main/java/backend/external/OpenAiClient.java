@@ -1,5 +1,6 @@
 package backend.external;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import com.openai.client.OpenAIClient;
@@ -15,8 +16,10 @@ import backend.external.dto.OpenAiResponse;
 public class OpenAiClient {
     private final OpenAIClient client;
 
-    public OpenAiClient() {
-        this.client = OpenAIOkHttpClient.fromEnv();
+    public OpenAiClient(@Value("${openai.api-key}") String openAiApiKey) {
+        this.client = OpenAIOkHttpClient.builder()
+            .apiKey(openAiApiKey)
+            .build();
     }
 
     public OpenAiResponse fetchWordData(String word) {

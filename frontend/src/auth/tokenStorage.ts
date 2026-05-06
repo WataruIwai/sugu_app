@@ -3,6 +3,7 @@ import * as SecureStore from "expo-secure-store";
 const AUTH_TOKEN_KEY = "auth_token";
 const GUEST_ID_KEY = "guest_id";
 const ATT_PERMISSION_REQUESTED_KEY = "att_permission_requested";
+const ONBOARDING_COMPLETED_KEY = "onboarding_completed";
 
 export const saveAuthToken = async (token: string) => {
   await SecureStore.setItemAsync(AUTH_TOKEN_KEY, token);
@@ -34,4 +35,12 @@ export const saveAttPermissionRequested = async () => {
 
 export const getAttPermissionRequested = async () => {
   return SecureStore.getItemAsync(ATT_PERMISSION_REQUESTED_KEY);
+};
+
+export const saveOnboardingCompleted = async () => {
+  await SecureStore.setItemAsync(ONBOARDING_COMPLETED_KEY, "true");
+};
+
+export const getOnboardingCompleted = async () => {
+  return SecureStore.getItemAsync(ONBOARDING_COMPLETED_KEY);
 };

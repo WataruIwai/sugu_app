@@ -3,3 +3,13 @@ spring:
         url: ${DB_URL}
         username: ${DB_USER}
         password: ${DB_PASSWORD}
+
+jwt:
+    secret: ${JWT_SECRET}
+
+apple:
+    signin:
+        audience: ${EXPO_PUBLIC_IOS_BUNDLE_ID}
+
+openai:
+    api-key: ${OPENAI_API_KEY}

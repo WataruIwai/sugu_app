@@ -27,7 +27,7 @@ public class AppleIdentityTokenVerifier {
     private final String iosBundleId;
 
     public AppleIdentityTokenVerifier(
-        @Value("${EXPO_PUBLIC_IOS_BUNDLE_ID}") String iosBundleId
+        @Value("${apple.signin.audience}") String iosBundleId
     ) {
         this.iosBundleId = iosBundleId;
     }
