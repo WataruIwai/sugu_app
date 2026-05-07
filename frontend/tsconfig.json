@@ -1,6 +1,9 @@
 {
-  "extends": "expo/tsconfig.base",
+  "extends": "expo/tsconfig.base.json",
   "compilerOptions": {
     "strict": true
-  }
+  },
+  "exclude": [
+    "node_modules"
+  ]
 }

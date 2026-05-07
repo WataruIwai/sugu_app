@@ -8,6 +8,26 @@ export type RewardedSearchBonusAdResult =
     | { status: "unavailable"; message: string }
     | { status: "error"; message: string };
 
+const getRewardedAdErrorMessage = (error: unknown): string => {
+    const rawMessage =
+        error instanceof Error
+            ? error.message
+            : typeof error === "string"
+              ? error
+              : "";
+
+    const normalizedMessage = rawMessage.toLowerCase();
+
+    if (
+        normalizedMessage.includes("account not approved yet") ||
+        normalizedMessage.includes("no-fill")
+    ) {
+        return "広告配信準備中のため、もうしばらくお待ちください。";
+    }
+
+    return "広告の読み込みに失敗しました。時間をおいてお試しください。";
+};
+
 let cachedGoogleMobileAdsModule: GoogleMobileAdsModule | null | undefined;
 let mobileAdsInitializationPromise: Promise<unknown> | null = null;
 
@@ -29,10 +49,6 @@ const getGoogleMobileAdsModule = (): GoogleMobileAdsModule | null => {
 const getRewardedAdUnitId = (
     googleMobileAdsModule: GoogleMobileAdsModule,
 ): string | null => {
-    if (__DEV__) {
-        return googleMobileAdsModule.TestIds.REWARDED;
-    }
-
     const configuredAdUnitId =
         Platform.OS === "ios"
             ? process.env.EXPO_PUBLIC_IOS_REWARDED_AD_UNIT_ID?.trim()
@@ -40,6 +56,10 @@ const getRewardedAdUnitId = (
 
     if (configuredAdUnitId) {
         return configuredAdUnitId;
+    }
+
+    if (__DEV__) {
+        return googleMobileAdsModule.TestIds.REWARDED;
     }
 
     return null;
@@ -148,8 +168,7 @@ export const showRewardedSearchBonusAd =
                         cleanup(unsubscribeCallbacks);
                         resolve({
                             status: "error",
-                            message:
-                                "広告の読み込みに失敗しました。時間をおいてお試しください。",
+                            message: getRewardedAdErrorMessage(error),
                         });
                     },
                 ),
