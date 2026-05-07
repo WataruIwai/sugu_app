@@ -29,11 +29,13 @@ import { BootSplashPage } from "./src/pages/BootSplashPage";
 import { OnboardingPage } from "./src/pages/OnboardingPage";
 import { SearchResult, WordDetailItem, WordItem } from "./src/types";
 
-const API_BASE_URL = "http://192.168.1.27:8080";
+const API_BASE_URL = "https://vocab-app-7lb5.onrender.com";
 const TERMS_URL =
     "https://www.notion.so/3559a7163b3880239ec3ed3cfed7bbff?source=copy_link";
 const PRIVACY_POLICY_URL =
     "https://www.notion.so/3559a7163b3880e4a470c45ee1e4e9cd?source=copy_link";
+const SUPPORT_URL =
+    "https://www.notion.so/Sugu-3599a7163b388045939ef45464732cff?source=copy_link";
 
 type Screen =
     | "onboarding"
@@ -633,6 +635,14 @@ export default function App() {
         }
     };
 
+    const handleOpenSupport = async () => {
+        try {
+            await Linking.openURL(SUPPORT_URL);
+        } catch {
+            setErrorMessage("お問い合わせページを開けませんでした。");
+        }
+    };
+
     const handleDeleteAccount = async () => {
         if (!token) {
             setErrorMessage("ログインが必要です。");
@@ -818,6 +828,7 @@ export default function App() {
                 onOpenSearch={() => handleOpenSearch("list")}
                 onOpenTerms={handleOpenTerms}
                 onOpenPrivacyPolicy={handleOpenPrivacyPolicy}
+                onOpenSupport={handleOpenSupport}
                 onDeleteAccount={handleDeleteAccount}
                 menuOpen={listMenuOpen}
                 onToggleMenu={() => setListMenuOpen((current) => !current)}
