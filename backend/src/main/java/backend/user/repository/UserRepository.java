@@ -86,13 +86,6 @@ public class UserRepository {
                 return null;
             }
         } catch (SQLException e) {
-            logger.error(
-                "UserRepository.getUserByProviderUserId failed. providerUserId={}, sqlState={}, message={}",
-                providerUserId,
-                e.getSQLState(),
-                e.getMessage(),
-                e
-            );
             throw new DatabaseException("Failed to get user by provider user id", e);
         }
     }
