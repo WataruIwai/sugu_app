@@ -2,7 +2,7 @@
     "expo": {
         "name": "Sugu",
         "slug": "frontend",
-        "version": "1.0.0",
+        "version": "1.0.1",
         "orientation": "portrait",
         "icon": "./assets/icon.png",
         "userInterfaceStyle": "light",
@@ -15,6 +15,7 @@
             "supportsTablet": false,
             "usesAppleSignIn": true,
             "bundleIdentifier": "com.sugu.ios",
+            "buildNumber": "2",
             "infoPlist": {
                 "CFBundleDisplayName": "Sugu"
             }
