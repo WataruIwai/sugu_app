@@ -86,8 +86,6 @@ public class OpenAiClient {
             .flatMap(content -> content.outputText().stream())
             .findFirst()
             .orElseThrow(() -> new RuntimeException("No structured output found"));
-
-        System.out.println(result);
         return result;
     }
 }

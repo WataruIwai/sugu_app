@@ -36,8 +36,6 @@ public class WordService {
         String normalizedWord = newWord.getWord().trim().toLowerCase();
         DictionaryWord dictionaryWord = dictionaryRepository.queryWordData(normalizedWord)
                 .orElseThrow(() -> new IllegalStateException("Dictionary data should exist when saving a searched word."));
-
-        System.out.println(dictionaryWord.getId());
         newWord.setWord(dictionaryWord.getNormalizedWord());
         newWord.setDictionaryWordId(dictionaryWord.getId());
         wordRepository.createWord(newWord);
