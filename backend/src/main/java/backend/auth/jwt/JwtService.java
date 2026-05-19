@@ -35,19 +35,6 @@ public class JwtService {
                 .compact();
     }
 
-    public boolean isTokenValid(String token) {
-        try {
-            Jwts.parser()
-                    .verifyWith(key)
-                    .build()
-                    .parseSignedClaims(token);
-
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
     public Long extractUserId(String token) {
         Claims claims = Jwts.parser()
                 .verifyWith(key)
@@ -59,11 +46,11 @@ public class JwtService {
     }
 
     public long extractUserIdFromHeader(String authorizationHeader) {
-        String token = authorizationHeader.replace("Bearer ", "");
-        if (this.isTokenValid(token)) {
+        String token = authorizationHeader.substring(7);
+        try {
             return this.extractUserId(token);
+        } catch (Exception e) {
+            throw new UnauthorizedException("Authentication required");
         }
-
-        throw new UnauthorizedException("Authentication required");
     }
 }

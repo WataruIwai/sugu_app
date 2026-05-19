@@ -23,7 +23,7 @@ public class AuthController {
     @PostMapping("/apple")
     public String signInWithAppleAuth(@RequestBody AppleAuthRequest request) {
         logger.info("POST /auth/apple received. identityTokenPresent={}",
-            request.getIdentityToken() != null && !request.getIdentityToken().isBlank());
+        request.getIdentityToken() != null && !request.getIdentityToken().isBlank());
         String token = authService.signInWithAppleAuth(request);
         logger.info("POST /auth/apple succeeded");
         return token;
