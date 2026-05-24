@@ -90,6 +90,77 @@ public class UsageRepository {
             .update();
     }
 
+    /**
+     * 通常検索回数を1回消費する。
+     * 後続処理が失敗した場合は rollbackUserUsage で戻す。
+     *
+     * @param usage 消費対象のユーザー検索回数
+     * @return 消費できた場合 true、上限到達で更新されなかった場合 false
+     */
+    public boolean consumeUserUsage(UserUsageCount usage) {
+        String sql = """
+            UPDATE user_search_usage
+            SET used_count = used_count + 1
+            WHERE user_id = :userId
+            AND usage_date = :usageDate
+            AND used_count < base_limit
+        """;
+
+        int affectedRows = jdbcClient.sql(sql)
+            .param("userId", usage.getUserId())
+            .param("usageDate", java.sql.Date.valueOf(usage.getUsageDate()))
+            .update();
+
+        return affectedRows == 1;
+    }
+
+    public void rollbackUserUsage(UserUsageCount usage) {
+        String sql = """
+            UPDATE user_search_usage
+            SET used_count = used_count - 1
+            WHERE user_id = :userId
+            AND usage_date = :usageDate
+            AND used_count > 0
+        """;
+
+        jdbcClient.sql(sql)
+            .param("userId", usage.getUserId())
+            .param("usageDate", java.sql.Date.valueOf(usage.getUsageDate()))
+            .update();
+    }
+
+    public boolean consumeUserBonusUsage(UserUsageCount usage) {
+        String sql = """
+            UPDATE user_search_usage
+            SET bonus_used_count = bonus_used_count + 1
+            WHERE user_id = :userId
+            AND usage_date = :usageDate
+            AND bonus_used_count < bonus_count
+        """;
+
+        int affectedRows = jdbcClient.sql(sql)
+            .param("userId", usage.getUserId())
+            .param("usageDate", java.sql.Date.valueOf(usage.getUsageDate()))
+            .update();
+
+        return affectedRows == 1;
+    }
+
+    public void rollbackUserBonusUsage(UserUsageCount usage) {
+        String sql = """
+            UPDATE user_search_usage
+            SET bonus_used_count = bonus_used_count - 1
+            WHERE user_id = :userId
+            AND usage_date = :usageDate
+            AND bonus_used_count > 0
+        """;
+
+        jdbcClient.sql(sql)
+            .param("userId", usage.getUserId())
+            .param("usageDate", java.sql.Date.valueOf(usage.getUsageDate()))
+            .update();
+    }
+
     public  Optional<GuestUsageCount> getGuestUsage(String guestId) {
         String sql = """
             SELECT id, guest_id, usage_date, base_limit, bonus_count, used_count, bonus_used_count
@@ -157,6 +228,70 @@ public class UsageRepository {
 
         jdbcClient.sql(sql)
             .param("bonusUsedCount", usage.getBonusUsedCount())
+            .param("guestId", usage.getGuestId())
+            .param("usageDate", java.sql.Date.valueOf(usage.getUsageDate()))
+            .update();
+    }
+
+    public boolean consumeGuestUsage(GuestUsageCount usage) {
+        String sql = """
+            UPDATE guest_search_usage
+            SET used_count = used_count + 1
+            WHERE guest_id = :guestId
+            AND usage_date = :usageDate
+            AND used_count < base_limit
+        """;
+
+        int affectedRows = jdbcClient.sql(sql)
+            .param("guestId", usage.getGuestId())
+            .param("usageDate", java.sql.Date.valueOf(usage.getUsageDate()))
+            .update();
+
+        return affectedRows == 1;
+    }
+
+    public void rollbackGuestUsage(GuestUsageCount usage) {
+        String sql = """
+            UPDATE guest_search_usage
+            SET used_count = used_count - 1
+            WHERE guest_id = :guestId
+            AND usage_date = :usageDate
+            AND used_count > 0
+        """;
+
+        jdbcClient.sql(sql)
+            .param("guestId", usage.getGuestId())
+            .param("usageDate", java.sql.Date.valueOf(usage.getUsageDate()))
+            .update();
+    }
+
+    public boolean consumeGuestBonusUsage(GuestUsageCount usage) {
+        String sql = """
+            UPDATE guest_search_usage
+            SET bonus_used_count = bonus_used_count + 1
+            WHERE guest_id = :guestId
+            AND usage_date = :usageDate
+            AND bonus_used_count < bonus_count
+        """;
+
+        int affectedRows = jdbcClient.sql(sql)
+            .param("guestId", usage.getGuestId())
+            .param("usageDate", java.sql.Date.valueOf(usage.getUsageDate()))
+            .update();
+
+        return affectedRows == 1;
+    }
+
+    public void rollbackGuestBonusUsage(GuestUsageCount usage) {
+        String sql = """
+            UPDATE guest_search_usage
+            SET bonus_used_count = bonus_used_count - 1
+            WHERE guest_id = :guestId
+            AND usage_date = :usageDate
+            AND bonus_used_count > 0
+        """;
+
+        jdbcClient.sql(sql)
             .param("guestId", usage.getGuestId())
             .param("usageDate", java.sql.Date.valueOf(usage.getUsageDate()))
             .update();

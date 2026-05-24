@@ -26,6 +26,11 @@ public  class DictionaryService {
     private OpenAiClient openAiClient;
     private UsageRepository usageRepository;
 
+    private enum ConsumedUsageType {
+        BASE,
+        BONUS
+    }
+
     public DictionaryService(DictionaryRepository dictionaryRepository, OpenAiClient openAiClient, UsageRepository usageRepository) {
         this.dictionaryRepository = dictionaryRepository;
         this.openAiClient = openAiClient;
@@ -49,68 +54,83 @@ public  class DictionaryService {
             usage = usageRepository.getUserUsage(userId).orElseGet(() -> usageRepository.createUserUsage(userId));
         }
 
+        ConsumedUsageType consumedUsageType = consumeUsage(searchContext, usage);
+        boolean shouldRollbackUsage = true;
 
-        if(!usage.canSearch() && !usage.canBonusSearch())throw new TooManyRequestsException("You have reached today's search limit");
-
-        Optional<DictionaryWord> queryWordDataResult = dictionaryRepository.queryWordData(searchWord);
-        //検索ロジック
-        if(queryWordDataResult.isPresent()) {
-            long id = queryWordDataResult.get().getId();
-            String word = queryWordDataResult.get().getNormalizedWord();
-            List<WordEntry> entries = dictionaryRepository.queryWordEntriesData(id);
-
-            //検索回数更新
-            if(searchContext.getGuestId() != null) {
-                if(usage.canSearch()) {
-                    usage.consume();
-                    usageRepository.updateGuestUsage((GuestUsageCount) usage);
-                } else {
-                    usage.consumeBonus();
-                    usageRepository.updateBonusGuestUsage((GuestUsageCount) usage);
-                }
+        try {
+            Optional<DictionaryWord> queryWordDataResult = dictionaryRepository.queryWordData(searchWord);
+            //検索ロジック
+            if(queryWordDataResult.isPresent()) {
+                long id = queryWordDataResult.get().getId();
+                String word = queryWordDataResult.get().getNormalizedWord();
+                List<WordEntry> entries = dictionaryRepository.queryWordEntriesData(id);
+                shouldRollbackUsage = false;
+                return new WordResponse(word, entries, "SUCCESS");
             } else {
-                if(usage.canSearch()) {
-                    usage.consume();
-                    usageRepository.updateUserUsage((UserUsageCount) usage);
+                OpenAiResponse openAiResult = openAiClient.fetchWordData(searchWord);
+                String inputWord = openAiResult.getInputWord();
+                String resolvedWord = openAiResult.getResolvedWord();
+                List<String> candidates = openAiResult.getCandidates();
+                List<WordEntry> entries = openAiResult.getEntries();
+                if(resolvedWord ==  null || !inputWord.equalsIgnoreCase(resolvedWord)) {
+                    //スペルミスなどでcandidatesに値が3つあるパターン
+                    rollbackUsage(searchContext, usage, consumedUsageType);
+                    shouldRollbackUsage = false;
+                    return new WordResponse(inputWord, candidates, entries,"SPELLING_SUSPECTED");
                 } else {
-                    usage.consumeBonus();
-                    usageRepository.updateBonusUserUsage((UserUsageCount) usage);
+                    String normalized = resolvedWord.trim().toLowerCase();
+                    long id = dictionaryRepository.createWordData(normalized);
+                    dictionaryRepository.createEntriesData(id, entries);
+                    shouldRollbackUsage = false;
+                    return new WordResponse(normalized, candidates, entries, "SUCCESS");
                 }
             }
+        } catch (RuntimeException e) {
+            if(shouldRollbackUsage) {
+                rollbackUsage(searchContext, usage, consumedUsageType);
+            }
+            throw e;
+        }
+    }
 
-            return new WordResponse(word, entries, "SUCCESS");
+    private ConsumedUsageType consumeUsage(SearchContext searchContext, UsageCount usage) {
+        if(searchContext.getGuestId() != null) {
+            GuestUsageCount guestUsage = (GuestUsageCount) usage;
+            if(usageRepository.consumeGuestUsage(guestUsage)) {
+                return ConsumedUsageType.BASE;
+            }
+
+            if(usageRepository.consumeGuestBonusUsage(guestUsage)) {
+                return ConsumedUsageType.BONUS;
+            }
         } else {
-            OpenAiResponse openAiResult = openAiClient.fetchWordData(searchWord);
-            String inputWord = openAiResult.getInputWord();
-            String resolvedWord = openAiResult.getResolvedWord();
-            List<String> candidates = openAiResult.getCandidates();
-            List<WordEntry> entries = openAiResult.getEntries();
-            if(resolvedWord ==  null || !inputWord.equalsIgnoreCase(resolvedWord)) {
-                //スペルミスなどでcandidatesに値が3つあるパターン
-                return new WordResponse(inputWord, candidates, entries,"SPELLING_SUSPECTED");
+            UserUsageCount userUsage = (UserUsageCount) usage;
+            if(usageRepository.consumeUserUsage(userUsage)) {
+                return ConsumedUsageType.BASE;
+            }
+
+            if(usageRepository.consumeUserBonusUsage(userUsage)) {
+                return ConsumedUsageType.BONUS;
+            }
+        }
+
+        throw new TooManyRequestsException("検索上限です。");
+    }
+
+    private void rollbackUsage(SearchContext searchContext, UsageCount usage, ConsumedUsageType consumedUsageType) {
+        if(searchContext.getGuestId() != null) {
+            GuestUsageCount guestUsage = (GuestUsageCount) usage;
+            if(consumedUsageType == ConsumedUsageType.BASE) {
+                usageRepository.rollbackGuestUsage(guestUsage);
             } else {
-                String normalized = resolvedWord.trim().toLowerCase();
-                long id = dictionaryRepository.createWordData(normalized);
-                dictionaryRepository.createEntriesData(id, entries);
-                //検索回数更新
-                if(searchContext.getGuestId() != null) {
-                    if(usage.canSearch()) {
-                        usage.consume();
-                        usageRepository.updateGuestUsage((GuestUsageCount) usage);
-                    } else {
-                        usage.consumeBonus();
-                        usageRepository.updateBonusGuestUsage((GuestUsageCount) usage);
-                    }
-                } else {
-                    if(usage.canSearch()) {
-                        usage.consume();
-                        usageRepository.updateUserUsage((UserUsageCount) usage);
-                    } else {
-                        usage.consumeBonus();
-                        usageRepository.updateBonusUserUsage((UserUsageCount) usage);
-                    }
-                }
-                return new WordResponse(normalized, candidates, entries, "SUCCESS");
+                usageRepository.rollbackGuestBonusUsage(guestUsage);
+            }
+        } else {
+            UserUsageCount userUsage = (UserUsageCount) usage;
+            if(consumedUsageType == ConsumedUsageType.BASE) {
+                usageRepository.rollbackUserUsage(userUsage);
+            } else {
+                usageRepository.rollbackUserBonusUsage(userUsage);
             }
         }
     }
