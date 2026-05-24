@@ -2,6 +2,7 @@ package backend.word.service;
 
 import java.util.List;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import backend.dictionary.dto.WordEntry;
 import backend.dictionary.dto.DictionaryWord;
@@ -25,6 +26,7 @@ public class WordService {
         return wordRepository.getWords(userId);
     }
 
+    @Transactional
     public WordDetail getWord(long wordId, long userId) {
         Word usersWord = wordRepository.getWord(wordId, userId)
                 .orElseThrow(() -> new NotFoundException("Word not found. wordId=" + wordId + ", userId" + userId));
@@ -32,6 +34,7 @@ public class WordService {
         return new WordDetail(usersWord.getWord(), wordEntries);
     }
 
+    @Transactional
     public void createWord(Word newWord) {
         String normalizedWord = newWord.getWord().trim().toLowerCase();
         DictionaryWord dictionaryWord = dictionaryRepository.queryWordData(normalizedWord)

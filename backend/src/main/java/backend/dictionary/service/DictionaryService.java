@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import backend.dictionary.dto.DictionaryWord;
 import backend.dictionary.dto.WordEntry;
@@ -31,6 +32,7 @@ public  class DictionaryService {
         this.usageRepository = usageRepository;
     }
 
+    @Transactional
     public WordResponse getWordData(String searchWord, SearchContext searchContext) {
         UsageCount usage;
 
@@ -46,6 +48,7 @@ public  class DictionaryService {
             //検索回数データ取得し、無かったら作成する
             usage = usageRepository.getUserUsage(userId).orElseGet(() -> usageRepository.createUserUsage(userId));
         }
+
 
         if(!usage.canSearch() && !usage.canBonusSearch())throw new TooManyRequestsException("You have reached today's search limit");
 

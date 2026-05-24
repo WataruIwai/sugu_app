@@ -1,6 +1,7 @@
 package backend.usage.service;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import backend.exception.NotFoundException;
 import backend.usage.domain.GuestUsageCount;
@@ -15,12 +16,14 @@ public class UsageService {
         this.usageRepository = usageRepository;
     }
 
+    @Transactional
     public void addBonusSearchCountToUser(Long userId) {
         UserUsageCount userUsage = usageRepository.getUserUsage(userId).orElseThrow(() ->
         new NotFoundException("Usage not found"));
         usageRepository.addBonusCountToUserUsage(userUsage);
     }
 
+    @Transactional
     public void addBonusSearchCountToGuest(String guestId) {
         GuestUsageCount guestUsage = usageRepository.getGuestUsage(guestId).orElseThrow(() ->
         new NotFoundException("Usage not found"));
