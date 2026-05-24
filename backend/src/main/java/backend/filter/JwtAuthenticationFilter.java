@@ -51,6 +51,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             } catch (UnauthorizedException e) {
                 SecurityContextHolder.clearContext();
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setCharacterEncoding("UTF-8");
                 response.setContentType("application/json");
                 response.getWriter().write("{\"message\":\"認証に失敗しました\"}");
                 return;
