@@ -21,7 +21,7 @@ public class UserRepository {
 
         return jdbcClient.sql(sql)
             .param("userId", userId)
-            .query((ResultSet rs, int rowNum) -> new User(
+            .query((ResultSet rs, int rowNum) -> User.fromDb(
                 rs.getLong("id"),
                 rs.getString("email"),
                 null,
@@ -49,7 +49,7 @@ public class UserRepository {
 
         return jdbcClient.sql(sql)
             .param("providerUserId", providerUserId)
-            .query((ResultSet rs, int rowNum) -> new User(
+            .query((ResultSet rs, int rowNum) -> User.fromDb(
                 rs.getLong("id"),
                 rs.getString("email"),
                 null,

@@ -12,7 +12,7 @@ public class User {
     private LocalDateTime agreedTermsAt;
 
     //DBから取得したユーザー情報
-    public User(
+    private User(
         long id,
         String email,
         String passwordHash,
@@ -26,24 +26,7 @@ public class User {
         this.providerUserId = providerUserId;
     }
 
-    //新規登録前
-    public User(
-        String email,
-        String passwordHash,
-        String authProvider,
-        String providerUserId,
-        String termsVersion,
-        LocalDateTime agreedTermsAt
-    ) {
-        this.email = email;
-        this.passwordHash = passwordHash;
-        this.authProvider = authProvider;
-        this.providerUserId = providerUserId;
-        this.termsVersion = termsVersion;
-        this.agreedTermsAt = agreedTermsAt;
-    }
-
-    public User(String email, String authProvider, String providerUserId, String termsVersion, LocalDateTime agreedTermsAt) {
+    private User(String email, String authProvider, String providerUserId, String termsVersion, LocalDateTime agreedTermsAt) {
         this.email = email;
         this.authProvider = authProvider;
         this.providerUserId = providerUserId;
@@ -51,9 +34,12 @@ public class User {
         this.agreedTermsAt = agreedTermsAt;
     }
 
-    //既存のメール認証用
-    public User(String email, String passwordHash, String termsVersion, LocalDateTime agreedTermsAt) {
-        this(email, passwordHash, "email", null, termsVersion, agreedTermsAt);
+    public static User fromDb(long id, String email, String passwordHash, String authProvider, String providerUserId) {
+        return new User(id, email, passwordHash, authProvider, providerUserId);
+    }
+
+    public static User forAppleSignUp(String email, String authProvider, String providerUserId, String termsVersion, LocalDateTime agreedTermsAt) {
+        return new User(email, authProvider, providerUserId, termsVersion, agreedTermsAt);
     }
 
     public long getId() {

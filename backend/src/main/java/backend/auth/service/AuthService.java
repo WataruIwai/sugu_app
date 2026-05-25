@@ -50,7 +50,7 @@ public class AuthService {
         User user = userRepository.getUserByProviderUserId(verifiedAppleUserInfo.getSub());
 
         if (user == null) {
-            user = new User(verifiedAppleUserInfo.getEmail(), "apple", verifiedAppleUserInfo.getSub(), "v1", LocalDateTime.now());
+            user = User.forAppleSignUp(verifiedAppleUserInfo.getEmail(), "apple", verifiedAppleUserInfo.getSub(), "v1", LocalDateTime.now());
             long userId = userRepository.createUserWithAppleId(user);
             String token = jwtService.generateToken(userId);
             return token;
