@@ -45,6 +45,8 @@ public  class DictionaryService {
             throw new BadRequestException("Please enter the word in romaji or English");
         }
 
+        String normalized = searchWord.trim().toLowerCase();
+
         if(searchContext.getGuestId() != null) {
             String guestId = searchContext.getGuestId();
             usage = usageRepository.getGuestUsage(guestId).orElseGet(() -> usageRepository.createGuestUsage(guestId));
@@ -58,7 +60,7 @@ public  class DictionaryService {
         boolean shouldRollbackUsage = true;
 
         try {
-            Optional<DictionaryWord> queryWordDataResult = dictionaryRepository.queryWordData(searchWord);
+            Optional<DictionaryWord> queryWordDataResult = dictionaryRepository.queryWordData(normalized);
             //検索ロジック
             if(queryWordDataResult.isPresent()) {
                 long id = queryWordDataResult.get().getId();
@@ -67,7 +69,7 @@ public  class DictionaryService {
                 shouldRollbackUsage = false;
                 return new WordResponse(word, entries, "SUCCESS");
             } else {
-                OpenAiResponse openAiResult = openAiClient.fetchWordData(searchWord);
+                OpenAiResponse openAiResult = openAiClient.fetchWordData(normalized);
                 String inputWord = openAiResult.getInputWord();
                 String resolvedWord = openAiResult.getResolvedWord();
                 List<String> candidates = openAiResult.getCandidates();
@@ -78,7 +80,6 @@ public  class DictionaryService {
                     shouldRollbackUsage = false;
                     return new WordResponse(inputWord, candidates, entries,"SPELLING_SUSPECTED");
                 } else {
-                    String normalized = resolvedWord.trim().toLowerCase();
                     long id = dictionaryRepository.createWordData(normalized);
                     dictionaryRepository.createEntriesData(id, entries);
                     shouldRollbackUsage = false;
