@@ -103,24 +103,17 @@ export default function App() {
         `guest_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
 
     const fetchWords = async (currentToken: string) => {
-        console.log("Fetch words started.");
         const response = await fetch(`${API_BASE_URL}/words`, {
             headers: {
                 Authorization: `Bearer ${currentToken}`,
             },
         });
 
-        console.log("Fetch words response received:", response.status);
-
         if (!response.ok) {
-            const rawResponseText = await response.text();
-            console.log("Fetch words response status:", response.status);
-            console.log("Fetch words response body:", rawResponseText);
             throw new Error("単語一覧の取得に失敗しました。");
         }
 
         const data = (await response.json()) as WordItem[];
-        console.log("Fetch words response data:", data);
         setWords(data);
     };
 
@@ -399,9 +392,6 @@ export default function App() {
 
             const rawResponseText = await response.text();
 
-            console.log("Dictionary search response status:", response.status);
-            console.log("Dictionary search response body:", rawResponseText);
-
             if (!response.ok) {
                 let serverMessage: string | null = null;
 
@@ -435,7 +425,6 @@ export default function App() {
             }
 
             const data = JSON.parse(rawResponseText) as SearchResult;
-            console.log(data);
             setSearchBonusPromptVisible(false);
             setSearchBonusPromptErrorMessage(null);
             setSearchResult(data);
