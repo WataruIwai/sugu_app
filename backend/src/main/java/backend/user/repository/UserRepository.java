@@ -32,6 +32,11 @@ public class UserRepository {
             .orElse(null);
     }
 
+    /**
+     * ユーザーを削除すると、ON DELETE CASCADE により
+     * ユーザーに紐づく単語データなども削除される。
+     * @param userId
+     */
     public void deleteUser(long userId) {
         String sql = """
             DELETE FROM users WHERE id = :userId
