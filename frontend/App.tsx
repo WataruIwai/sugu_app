@@ -48,6 +48,41 @@ type SearchReturnScreen = "signin" | "list" | "detail";
 const normalizeToken = (raw: string) => raw.trim().replace(/^"|"$/g, "");
 const MIN_BOOT_SPLASH_DURATION_MS = 2000;
 const FORCE_SHOW_ONBOARDING = false;
+const ERROR_MESSAGE_BY_CODE: Record<string, string> = {
+    BAD_REQUEST: "入力内容に誤りがあります",
+    UNAUTHORIZED: "認証に失敗しました",
+    NOT_FOUND: "データが見つかりませんでした",
+    CONFLICT: "既に登録されています",
+    TOO_MANY_REQUESTS: "本日の検索回数の上限に達しました",
+    INTERNAL_SERVER_ERROR: "サーバーエラーが発生しました",
+    INTERNAL_ERROR: "サーバーエラーが発生しました",
+};
+
+const resolveServerErrorMessage = (
+    serverMessage: string | null | undefined,
+    fallbackMessage: string,
+) => {
+    if (!serverMessage) {
+        return fallbackMessage;
+    }
+
+    return ERROR_MESSAGE_BY_CODE[serverMessage] ?? serverMessage;
+};
+
+const parseServerErrorMessage = (
+    rawResponseText: string,
+    fallbackMessage: string,
+) => {
+    try {
+        const errorData = JSON.parse(rawResponseText) as {
+            message?: string;
+        };
+
+        return resolveServerErrorMessage(errorData.message, fallbackMessage);
+    } catch {
+        return fallbackMessage;
+    }
+};
 
 export default function App() {
     const bootStartedAtRef = useRef(Date.now());
@@ -110,7 +145,12 @@ export default function App() {
         });
 
         if (!response.ok) {
-            throw new Error("単語一覧の取得に失敗しました。");
+            throw new Error(
+                parseServerErrorMessage(
+                    await response.text(),
+                    "単語一覧の取得に失敗しました。",
+                ),
+            );
         }
 
         const data = (await response.json()) as WordItem[];
@@ -125,7 +165,12 @@ export default function App() {
         });
 
         if (!response.ok) {
-            throw new Error("単語詳細の取得に失敗しました。");
+            throw new Error(
+                parseServerErrorMessage(
+                    await response.text(),
+                    "単語詳細の取得に失敗しました。",
+                ),
+            );
         }
 
         const data = (await response.json()) as WordDetailItem;
@@ -216,17 +261,12 @@ export default function App() {
 
             if (!response.ok) {
                 const rawResponseText = await response.text();
-
-                try {
-                    const errorData = JSON.parse(rawResponseText) as {
-                        message?: string;
-                    };
-                    throw new Error(
-                        errorData.message ?? "Apple ログインに失敗しました。",
-                    );
-                } catch {
-                    throw new Error("Apple ログインに失敗しました。");
-                }
+                throw new Error(
+                    parseServerErrorMessage(
+                        rawResponseText,
+                        "Apple ログインに失敗しました。",
+                    ),
+                );
             }
 
             const currentToken = normalizeToken(await response.text());
@@ -322,7 +362,12 @@ export default function App() {
             });
 
             if (!response.ok) {
-                throw new Error("単語の削除に失敗しました。");
+                throw new Error(
+                    parseServerErrorMessage(
+                        await response.text(),
+                        "単語の削除に失敗しました。",
+                    ),
+                );
             }
 
             await fetchWords(token);
@@ -393,16 +438,10 @@ export default function App() {
             const rawResponseText = await response.text();
 
             if (!response.ok) {
-                let serverMessage: string | null = null;
-
-                try {
-                    const errorData = JSON.parse(rawResponseText) as {
-                        message?: string;
-                    };
-                    serverMessage = errorData.message ?? null;
-                } catch {
-                    serverMessage = null;
-                }
+                const serverMessage = parseServerErrorMessage(
+                    rawResponseText,
+                    "検索に失敗しました。",
+                );
 
                 const isSearchLimitError =
                     response.status === 429 ||
@@ -413,7 +452,7 @@ export default function App() {
                 if (isSearchLimitError) {
                     setSearchErrorMessage(null);
                     openSearchBonusPrompt(
-                        "本日の検索上限です",
+                        serverMessage,
                         canUseRewardedSearchBonusAd()
                             ? "広告を視聴すると、追加で3回検索できます。"
                             : "広告機能の準備ができていません。開発用ビルドで確認してください。",
@@ -421,7 +460,7 @@ export default function App() {
                     return;
                 }
 
-                throw new Error(serverMessage ?? "検索に失敗しました。");
+                throw new Error(serverMessage);
             }
 
             const data = JSON.parse(rawResponseText) as SearchResult;
@@ -473,7 +512,12 @@ export default function App() {
             });
 
             if (!response.ok) {
-                throw new Error("My List への追加に失敗しました。");
+                throw new Error(
+                    parseServerErrorMessage(
+                        await response.text(),
+                        "My List への追加に失敗しました。",
+                    ),
+                );
             }
 
             await fetchWords(token);
@@ -508,20 +552,11 @@ export default function App() {
         });
 
         if (!response.ok) {
-            let serverMessage: string | null = null;
-
-            try {
-                const errorData = (await response.json()) as {
-                    message?: string;
-                };
-                serverMessage = errorData.message ?? null;
-            } catch {
-                serverMessage = null;
-            }
-
             throw new Error(
-                serverMessage ??
+                parseServerErrorMessage(
+                    await response.text(),
                     "広告視聴後の特典反映に失敗しました。もう一度お試しください。",
+                ),
             );
         }
     };
@@ -650,19 +685,11 @@ export default function App() {
             });
 
             if (!response.ok) {
-                let serverMessage: string | null = null;
-
-                try {
-                    const errorData = (await response.json()) as {
-                        message?: string;
-                    };
-                    serverMessage = errorData.message ?? null;
-                } catch {
-                    serverMessage = null;
-                }
-
                 throw new Error(
-                    serverMessage ?? "アカウント削除に失敗しました。",
+                    parseServerErrorMessage(
+                        await response.text(),
+                        "アカウント削除に失敗しました。",
+                    ),
                 );
             }
 
