@@ -49,19 +49,6 @@ public class UsageRepository {
                 .orElseThrow(() -> new RuntimeException("Failed to load user usage after conflict")));
     }
 
-    public void updateUserUsage(UserUsageCount usage) {
-        String sql = """
-            UPDATE user_search_usage
-            SET used_count = :usedCount
-            WHERE user_id = :userId AND usage_date = :usageDate
-        """;
-
-        jdbcClient.sql(sql)
-            .param("usedCount", usage.getUsedCount())
-            .param("userId", usage.getUserId())
-            .param("usageDate", java.sql.Date.valueOf(usage.getUsageDate()))
-            .update();
-    }
 
     public void addBonusCountToUserUsage(UserUsageCount usage) {
         String sql = """
@@ -71,20 +58,6 @@ public class UsageRepository {
         """;
 
         jdbcClient.sql(sql)
-            .param("userId", usage.getUserId())
-            .param("usageDate", java.sql.Date.valueOf(usage.getUsageDate()))
-            .update();
-    }
-
-    public void updateBonusUserUsage(UserUsageCount usage) {
-        String sql = """
-            UPDATE user_search_usage
-            SET bonus_used_count = :bonusUsedCount
-            WHERE user_id = :userId AND usage_date = :usageDate
-        """;
-
-        jdbcClient.sql(sql)
-            .param("bonusUsedCount", usage.getBonusUsedCount())
             .param("userId", usage.getUserId())
             .param("usageDate", java.sql.Date.valueOf(usage.getUsageDate()))
             .update();
@@ -192,20 +165,6 @@ public class UsageRepository {
                 .orElseThrow(() -> new RuntimeException("Failed to load guest usage after conflict")));
     }
 
-    public void updateGuestUsage(GuestUsageCount usage) {
-        String sql = """
-            UPDATE guest_search_usage
-            SET used_count = :usedCount
-            WHERE guest_id = :guestId AND usage_date = :usageDate
-        """;
-
-        jdbcClient.sql(sql)
-            .param("usedCount", usage.getUsedCount())
-            .param("guestId", usage.getGuestId())
-            .param("usageDate", java.sql.Date.valueOf(usage.getUsageDate()))
-            .update();
-    }
-
     public void addBonusCountToGuestUsage(GuestUsageCount usage) {
         String sql = """
             UPDATE guest_search_usage
@@ -214,20 +173,6 @@ public class UsageRepository {
         """;
 
         jdbcClient.sql(sql)
-            .param("guestId", usage.getGuestId())
-            .param("usageDate", java.sql.Date.valueOf(usage.getUsageDate()))
-            .update();
-    }
-
-    public void updateBonusGuestUsage(GuestUsageCount usage) {
-        String sql = """
-            UPDATE guest_search_usage
-            SET bonus_used_count = :bonusUsedCount
-            WHERE guest_id = :guestId AND usage_date = :usageDate
-        """;
-
-        jdbcClient.sql(sql)
-            .param("bonusUsedCount", usage.getBonusUsedCount())
             .param("guestId", usage.getGuestId())
             .param("usageDate", java.sql.Date.valueOf(usage.getUsageDate()))
             .update();

@@ -37,32 +37,6 @@ public class GuestUsageCount implements UsageCount {
         return bonusCount - bonusUsedCount;
     }
 
-    @Override
-    public boolean canSearch() {
-        return getRemainingCount() > 0;
-    }
-
-    @Override
-    public void consume() {
-        if(!canSearch()) {
-            throw new IllegalStateException("Search limit exceeded");
-        }
-        this.usedCount++;
-    }
-
-    @Override
-    public boolean canBonusSearch() {
-        return getRemainingBonusCount() > 0;
-    }
-
-    @Override
-    public void consumeBonus() {
-        if(!canBonusSearch()) {
-            throw new IllegalStateException("Bonus Search limit exceeded");
-        }
-        this.bonusUsedCount++;
-    }
-
     public String getGuestId() {
         return guestId;
     }
