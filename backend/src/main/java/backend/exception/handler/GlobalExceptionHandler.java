@@ -1,5 +1,7 @@
 package backend.exception.handler;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -13,33 +15,47 @@ import backend.exception.dto.ErrorResponse;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<ErrorResponse> handleIllegalState(IllegalStateException e) {
-        return ResponseEntity.status(500).body(new ErrorResponse("サーバーエラーが発生しました"));
+        logger.error("Internal Server Error", e);
+        return ResponseEntity.status(500).body(new ErrorResponse("INTERNAL_SERVER_ERROR"));
     }
 
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ErrorResponse> handleBadRequest(BadRequestException e) {
-        return ResponseEntity.status(400).body(new ErrorResponse("入力内容に誤りがあります"));
+        logger.warn("BadRequest: {}", e.getMessage());
+        return ResponseEntity.status(400).body(new ErrorResponse("BAD_REQUEST"));
     }
 
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<ErrorResponse> handleUnauthorized(UnauthorizedException e) {
-        return ResponseEntity.status(401).body(new ErrorResponse("認証に失敗しました"));
+        logger.warn("Unauthorized: {}", e.getMessage());
+        return ResponseEntity.status(401).body(new ErrorResponse("UNAUTHORIZED"));
     }
 
     @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(NotFoundException e) {
-        return ResponseEntity.status(404).body(new ErrorResponse("データが見つかりませんでした"));
+        logger.warn("Not found: {}", e.getMessage());
+        return ResponseEntity.status(404).body(new ErrorResponse("NOT_FOUND"));
     }
 
     @ExceptionHandler(ConflictException.class)
     public ResponseEntity<ErrorResponse> handleConflictException(ConflictException e) {
-        return ResponseEntity.status(409).body(new ErrorResponse("既に登録されています"));
+        logger.warn("Conflict: {}", e.getMessage());
+        return ResponseEntity.status(409).body(new ErrorResponse("CONFLICT"));
     }
 
     @ExceptionHandler(TooManyRequestsException.class)
     public ResponseEntity<ErrorResponse> handleTooManyRequestsException(TooManyRequestsException e) {
-        return ResponseEntity.status(429).body(new ErrorResponse("本日の検索回数の上限に達しました"));
+        logger.warn("Too many requests: {}", e.getMessage());
+        return ResponseEntity.status(429).body(new ErrorResponse("TOO_MANY_REQUESTS"));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleUnknown(Exception e) {
+        logger.error("Unhandled exception", e);
+        return ResponseEntity.status(500).body(new ErrorResponse("INTERNAL_ERROR"));
     }
 }
