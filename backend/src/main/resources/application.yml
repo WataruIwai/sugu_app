@@ -9,6 +9,10 @@ spring:
 
 jwt:
     secret: ${JWT_SECRET}
+    expiration: 24h
+
+usage:
+    bonus-amount: 3
 
 apple:
     signin:

@@ -1,6 +1,7 @@
 package backend.auth.jwt;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Date;
 
 import javax.crypto.SecretKey;
@@ -15,17 +16,19 @@ import io.jsonwebtoken.security.Keys;
 
 @Component
 public class JwtService {
-    final private SecretKey key;
+    private final SecretKey key;
+    private final Duration expiration;
 
-    public JwtService(@Value("${jwt.secret}") String jwtSecret) {
+    public JwtService(@Value("${jwt.secret}") String jwtSecret, @Value("${jwt.expiration}") Duration expiration) {
         this.key = Keys.hmacShaKeyFor(
             jwtSecret.getBytes(StandardCharsets.UTF_8)
         );
+        this.expiration = expiration;
     }
 
     public String generateToken(Long userId) {
         Date now = new Date();
-        Date expiry = new Date(now.getTime() + 1000 * 60 * 60 * 24); // 24時間
+        Date expiry = new Date(now.getTime() + expiration.toMillis());
 
         return Jwts.builder()
                 .subject(String.valueOf(userId))

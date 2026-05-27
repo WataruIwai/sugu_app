@@ -4,6 +4,7 @@ import java.sql.ResultSet;
 import java.time.LocalDate;
 import java.util.Optional;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
@@ -13,9 +14,11 @@ import backend.usage.domain.UserUsageCount;
 @Repository
 public class UsageRepository {
     private final JdbcClient jdbcClient;
+    private final int bonusAmount;
 
-    public UsageRepository(JdbcClient jdbcClient) {
+    public UsageRepository(JdbcClient jdbcClient, @Value("${usage.bonus-amount}") int bonusAmount) {
         this.jdbcClient = jdbcClient;
+        this.bonusAmount = bonusAmount;
     }
 
     public  Optional<UserUsageCount> getUserUsage(long userId) {
@@ -53,11 +56,12 @@ public class UsageRepository {
     public void addBonusCountToUserUsage(UserUsageCount usage) {
         String sql = """
             UPDATE user_search_usage
-            SET bonus_count = bonus_count + 3
+            SET bonus_count = bonus_count + :bonusAmount
             WHERE user_id = :userId AND usage_date = :usageDate
         """;
 
         jdbcClient.sql(sql)
+            .param("bonusAmount", bonusAmount)
             .param("userId", usage.getUserId())
             .param("usageDate", java.sql.Date.valueOf(usage.getUsageDate()))
             .update();
@@ -168,11 +172,12 @@ public class UsageRepository {
     public void addBonusCountToGuestUsage(GuestUsageCount usage) {
         String sql = """
             UPDATE guest_search_usage
-            SET bonus_count = bonus_count + 3
+            SET bonus_count = bonus_count + :bonusAmount
             WHERE guest_id = :guestId AND usage_date = :usageDate
         """;
 
         jdbcClient.sql(sql)
+            .param("bonusAmount", bonusAmount)
             .param("guestId", usage.getGuestId())
             .param("usageDate", java.sql.Date.valueOf(usage.getUsageDate()))
             .update();
