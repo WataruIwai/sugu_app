@@ -2,6 +2,7 @@ package backend.auth.dto;
 
 public class AppleAuthRequest {
     private String identityToken;
+    private String expectedNonceHash;
     private Boolean agreedToTerms;
 
     public AppleAuthRequest() {
@@ -9,9 +10,11 @@ public class AppleAuthRequest {
 
     public AppleAuthRequest(
         String identityToken,
+        String expectedNonceHash,
         Boolean agreedToTerms
     ) {
         this.identityToken = identityToken;
+        this.expectedNonceHash = expectedNonceHash;
         this.agreedToTerms = agreedToTerms;
     }
 
@@ -19,8 +22,16 @@ public class AppleAuthRequest {
         return identityToken;
     }
 
+    public String getExpectedNonceHash() {
+        return expectedNonceHash;
+    }
+
     public void setIdentityToken(String identityToken) {
         this.identityToken = identityToken;
+    }
+
+    public void setExpectedNonceHash(String expectedNonceHash) {
+        this.expectedNonceHash = expectedNonceHash;
     }
 
     public Boolean getAgreedToTerms() {

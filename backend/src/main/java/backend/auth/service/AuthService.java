@@ -40,12 +40,17 @@ public class AuthService {
             throw new BadRequestException("Identity token is required");
         }
 
+        if (appleAuthRequest.getExpectedNonceHash() == null || appleAuthRequest.getExpectedNonceHash().isBlank()) {
+            logger.warn("AuthService.signInWithAppleAuth rejected: expectedNonceHash is blank");
+            throw new BadRequestException("Nonce is required");
+        }
+
         if (!Boolean.TRUE.equals(appleAuthRequest.getAgreedToTerms())) {
             logger.warn("AuthService.signInWithAppleAuth rejected: terms not agreed");
             throw new BadRequestException("You must agree to the terms");
         }
 
-        VerifiedAppleUserInfo verifiedAppleUserInfo = appleIdentityTokenVerifier.execute(appleAuthRequest.getIdentityToken());
+        VerifiedAppleUserInfo verifiedAppleUserInfo = appleIdentityTokenVerifier.execute(appleAuthRequest.getIdentityToken(), appleAuthRequest.getExpectedNonceHash());
 
         User user = userRepository.getUserByProviderUserId(verifiedAppleUserInfo.getSub());
 

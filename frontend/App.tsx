@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Linking, Platform } from "react-native";
 import * as AppleAuthentication from "expo-apple-authentication";
+import * as Crypto from "expo-crypto";
 import {
     getTrackingPermissionsAsync,
     requestTrackingPermissionsAsync,
@@ -83,6 +84,11 @@ const parseServerErrorMessage = (
         return fallbackMessage;
     }
 };
+
+const generateNonce = (byteLength = 32) =>
+    Array.from(Crypto.getRandomBytes(byteLength))
+        .map((byte) => byte.toString(16).padStart(2, "0"))
+        .join("");
 
 export default function App() {
     const bootStartedAtRef = useRef(Date.now());
@@ -235,11 +241,18 @@ export default function App() {
                 );
             }
 
+            const rawNonce = generateNonce();
+            const expectedNonceHash = await Crypto.digestStringAsync(
+                Crypto.CryptoDigestAlgorithm.SHA256,
+                rawNonce,
+            );
+
             const credential = await AppleAuthentication.signInAsync({
                 requestedScopes: [
                     AppleAuthentication.AppleAuthenticationScope.EMAIL,
                     AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
                 ],
+                nonce: expectedNonceHash,
             });
 
             if (!credential.identityToken) {
@@ -255,6 +268,7 @@ export default function App() {
                 },
                 body: JSON.stringify({
                     identityToken: credential.identityToken,
+                    expectedNonceHash,
                     agreedToTerms,
                 }),
             });

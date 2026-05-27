@@ -28,13 +28,13 @@ public class AppleIdentityTokenVerifier {
         this.jwkProvider = jwkProvider;
     }
 
-    public VerifiedAppleUserInfo execute(String identityToken) {
+    public VerifiedAppleUserInfo execute(String identityToken, String expectedNonceHash) {
         try {
             DecodedJWT decodedJWT = JWT.decode(identityToken);
             String kid = decodedJWT.getKeyId();
             Jwk jwk = jwkProvider.get(kid);
             RSAPublicKey applePublicKey = (RSAPublicKey) jwk.getPublicKey();
-            return verify(applePublicKey, identityToken);
+            return verify(applePublicKey, identityToken, expectedNonceHash);
 
             //Jwk.getPublicKey() はInvalidPublicKeyExceptionをthrowsするけどこのハンドリングは適切か？
         } catch (Exception e) {
@@ -42,13 +42,14 @@ public class AppleIdentityTokenVerifier {
         }
     }
 
-    private VerifiedAppleUserInfo verify(RSAPublicKey applePublicKey, String identityToken) {
+    private VerifiedAppleUserInfo verify(RSAPublicKey applePublicKey, String identityToken, String expectedNonceHash) {
         try {
             Algorithm algorithm = Algorithm.RSA256(applePublicKey, null);
 
             JWTVerifier verifier = JWT.require(algorithm)
                 .withIssuer(APPLE_ISSUER)
                 .withAudience(iosBundleId)
+                .withClaim("nonce", expectedNonceHash)
                 .build();
 
             DecodedJWT verifiedJwt = verifier.verify(identityToken);
