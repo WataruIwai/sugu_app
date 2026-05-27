@@ -144,7 +144,7 @@ export default function App() {
         `guest_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
 
     const fetchWords = async (currentToken: string) => {
-        const response = await fetch(`${API_BASE_URL}/words`, {
+        const response = await fetch(`${API_BASE_URL}/api/v1/words`, {
             headers: {
                 Authorization: `Bearer ${currentToken}`,
             },
@@ -164,7 +164,7 @@ export default function App() {
     };
 
     const fetchWordDetail = async (wordId: number, currentToken: string) => {
-        const response = await fetch(`${API_BASE_URL}/words/${wordId}`, {
+        const response = await fetch(`${API_BASE_URL}/api/v1/words/${wordId}`, {
             headers: {
                 Authorization: `Bearer ${currentToken}`,
             },
@@ -261,7 +261,7 @@ export default function App() {
                 );
             }
 
-            const response = await fetch(`${API_BASE_URL}/auth/apple`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/auth/apple`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -368,7 +368,7 @@ export default function App() {
         setErrorMessage(null);
 
         try {
-            const response = await fetch(`${API_BASE_URL}/words/${wordId}`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/words/${wordId}`, {
                 method: "DELETE",
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -435,7 +435,7 @@ export default function App() {
 
         try {
             const response = await fetch(
-                `${API_BASE_URL}/api/dictionary/search`,
+                `${API_BASE_URL}/api/v1/dictionary/search`,
                 {
                     method: "POST",
                     headers: {
@@ -514,7 +514,7 @@ export default function App() {
         setSearchErrorMessage(null);
 
         try {
-            const response = await fetch(`${API_BASE_URL}/words`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/words`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -557,7 +557,7 @@ export default function App() {
     };
 
     const grantSearchBonus = async () => {
-        const response = await fetch(`${API_BASE_URL}/api/usage/bonus`, {
+        const response = await fetch(`${API_BASE_URL}/api/v1/usage/bonus`, {
             method: "POST",
             headers: {
                 ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -691,7 +691,7 @@ export default function App() {
         setErrorMessage(null);
 
         try {
-            const response = await fetch(`${API_BASE_URL}/user`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/user`, {
                 method: "DELETE",
                 headers: {
                     Authorization: `Bearer ${token}`,

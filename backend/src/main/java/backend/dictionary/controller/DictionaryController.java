@@ -11,7 +11,7 @@ import backend.exception.UnauthorizedException;
 
 //検索は未ログインユーザーも可能
 @RestController
-@RequestMapping("/api/dictionary")
+@RequestMapping("/api/v1/dictionary")
 public class DictionaryController {
 
     private final DictionaryService dictionaryService;

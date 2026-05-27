@@ -10,7 +10,7 @@ import backend.exception.UnauthorizedException;
 import backend.usage.service.UsageService;
 
 @RestController
-@RequestMapping("/api/usage")
+@RequestMapping("/api/v1/usage")
 public class UsageController {
     private final UsageService usageService;
 

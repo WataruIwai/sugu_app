@@ -11,7 +11,7 @@ import backend.auth.dto.AppleAuthRequest;
 import backend.auth.service.AuthService;
 
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("api/v1/auth")
 public class AuthController {
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
     private AuthService authService;

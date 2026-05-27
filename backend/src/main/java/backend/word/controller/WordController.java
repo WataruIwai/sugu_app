@@ -17,7 +17,7 @@ import backend.word.domain.WordDetail;
 import backend.word.service.WordService;
 
 @RestController
-@RequestMapping("/words")
+@RequestMapping("api/v1/words")
 public class WordController {
     private WordService wordService;
 
