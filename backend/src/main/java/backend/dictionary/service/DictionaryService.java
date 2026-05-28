@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import backend.dictionary.dto.DictionaryWord;
 import backend.dictionary.dto.WordEntry;
@@ -22,22 +21,23 @@ import backend.usage.repository.UsageRepository;
 
 @Service
 public  class DictionaryService {
-    private DictionaryRepository dictionaryRepository;
-    private OpenAiClient openAiClient;
-    private UsageRepository usageRepository;
+    private final DictionaryRepository dictionaryRepository;
+    private final OpenAiClient openAiClient;
+    private final UsageRepository usageRepository;
+    private final DictionaryWriteService dictionaryWriteService;
 
     private enum ConsumedUsageType {
         BASE,
         BONUS
     }
 
-    public DictionaryService(DictionaryRepository dictionaryRepository, OpenAiClient openAiClient, UsageRepository usageRepository) {
+    public DictionaryService(DictionaryRepository dictionaryRepository, OpenAiClient openAiClient, UsageRepository usageRepository, DictionaryWriteService dictionaryWriteService) {
         this.dictionaryRepository = dictionaryRepository;
         this.openAiClient = openAiClient;
         this.usageRepository = usageRepository;
+        this.dictionaryWriteService = dictionaryWriteService;
     }
 
-    @Transactional
     public WordResponse getWordData(String searchWord, SearchContext searchContext) {
         UsageCount usage;
 
@@ -80,8 +80,7 @@ public  class DictionaryService {
                     shouldRollbackUsage = false;
                     return new WordResponse(inputWord, candidates, entries,"SPELLING_SUSPECTED");
                 } else {
-                    long id = dictionaryRepository.createWordData(normalized);
-                    dictionaryRepository.createEntriesData(id, entries);
+                    dictionaryWriteService.createWordDataWithEntries(normalized, entries);
                     shouldRollbackUsage = false;
                     return new WordResponse(normalized, candidates, entries, "SUCCESS");
                 }
