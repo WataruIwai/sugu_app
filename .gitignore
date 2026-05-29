@@ -1,3 +1,5 @@
 backend/.env
+backend/.env.prod
+backend/.env.test
 *.class
 backend/target/
