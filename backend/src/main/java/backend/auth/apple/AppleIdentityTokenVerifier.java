@@ -8,6 +8,7 @@ import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.auth0.jwt.interfaces.JWTVerifier;
+import com.auth0.jwt.interfaces.Verification;
 import java.security.interfaces.RSAPublicKey;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -43,12 +44,14 @@ public class AppleIdentityTokenVerifier {
     try {
       Algorithm algorithm = Algorithm.RSA256(applePublicKey, null);
 
-      JWTVerifier verifier =
-          JWT.require(algorithm)
-              .withIssuer(APPLE_ISSUER)
-              .withAudience(iosBundleId)
-              .withClaim("nonce", expectedNonceHash)
-              .build();
+      Verification verification =
+          JWT.require(algorithm).withIssuer(APPLE_ISSUER).withAudience(iosBundleId);
+
+      if (expectedNonceHash != null && !expectedNonceHash.isBlank()) {
+        verification.withClaim("nonce", expectedNonceHash);
+      }
+
+      JWTVerifier verifier = verification.build();
 
       DecodedJWT verifiedJwt = verifier.verify(identityToken);
       return new VerifiedAppleUserInfo(
