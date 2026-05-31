@@ -1,37 +1,61 @@
 package backend.external.dto;
 
+import backend.dictionary.dto.WordEntry;
 import java.util.List;
 
-import backend.dictionary.dto.WordEntry;
-
 public class OpenAiResponse {
-    private String inputWord;
-    private List<String> candidates;
-    private String resolvedWord;
-    private List<WordEntry> entries;
+  private String inputWord;
+  private List<String> candidates;
+  private String resolvedWord;
+  private List<WordEntry> entries;
 
-    public OpenAiResponse(){}
+  public OpenAiResponse() {}
 
-    public String getInputWord() { return inputWord; }
-    public void setInputWord(String inputWord) { this.inputWord = inputWord; }
+  public String getInputWord() {
+    return inputWord;
+  }
 
-    public List<String> getCandidates() { return candidates; }
-    public void setCandidates(List<String> candidates) { this.candidates = candidates; }
+  public void setInputWord(String inputWord) {
+    this.inputWord = inputWord;
+  }
 
+  public List<String> getCandidates() {
+    return candidates;
+  }
 
-    public String getResolvedWord() { return resolvedWord; }
-    public void setResolvedWord(String resolvedWord) { this.resolvedWord = resolvedWord; }
+  public void setCandidates(List<String> candidates) {
+    this.candidates = candidates;
+  }
 
-    public List<WordEntry> getEntries() { return entries; }
-    public void setEntries(List<WordEntry> entries) { this.entries = entries; }
+  public String getResolvedWord() {
+    return resolvedWord;
+  }
 
-    @Override
-    public String toString() {
-        return "OpenAiResponse{" +
-                "inputWord='" + inputWord + '\'' +
-                ", candidates=" + candidates +
-                ", resolvedWord='" + resolvedWord + '\'' +
-                ", entries=" + entries +
-                '}';
-    }
+  public void setResolvedWord(String resolvedWord) {
+    this.resolvedWord = resolvedWord;
+  }
+
+  public List<WordEntry> getEntries() {
+    return entries;
+  }
+
+  public void setEntries(List<WordEntry> entries) {
+    this.entries = entries;
+  }
+
+  @Override
+  public String toString() {
+    return "OpenAiResponse{"
+        + "inputWord='"
+        + inputWord
+        + '\''
+        + ", candidates="
+        + candidates
+        + ", resolvedWord='"
+        + resolvedWord
+        + '\''
+        + ", entries="
+        + entries
+        + '}';
+  }
 }

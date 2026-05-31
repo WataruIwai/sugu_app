@@ -1,31 +1,29 @@
 package backend.external;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-
+import backend.external.dto.OpenAiResponse;
 import com.openai.client.OpenAIClient;
 import com.openai.client.okhttp.OpenAIOkHttpClient;
 import com.openai.models.ChatModel;
 import com.openai.models.responses.ResponseCreateParams;
 import com.openai.models.responses.StructuredResponse;
 import com.openai.models.responses.StructuredResponseCreateParams;
-
-import backend.external.dto.OpenAiResponse;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
 @Component
 public class OpenAiClient {
-    private final OpenAIClient client;
+  private final OpenAIClient client;
 
-    public OpenAiClient(@Value("${openai.api-key}") String openAiApiKey) {
-        this.client = OpenAIOkHttpClient.builder()
-            .apiKey(openAiApiKey)
-            .build();
-    }
+  public OpenAiClient(@Value("${openai.api-key}") String openAiApiKey) {
+    this.client = OpenAIOkHttpClient.builder().apiKey(openAiApiKey).build();
+  }
 
-    public OpenAiResponse fetchWordData(String word) {
-        StructuredResponseCreateParams<OpenAiResponse> params = ResponseCreateParams.builder()
-                .model(ChatModel.GPT_5_4_NANO)
-                .input("""
+  public OpenAiResponse fetchWordData(String word) {
+    StructuredResponseCreateParams<OpenAiResponse> params =
+        ResponseCreateParams.builder()
+            .model(ChatModel.GPT_5_4_NANO)
+            .input(
+                """
                         Act as a dictionary assistant.
 
                         The user input word is: %s
@@ -76,16 +74,19 @@ public class OpenAiClient {
                             "resolvedWord": null,
                             "entries": []
                         }
-                    """.formatted(word))
-                .text(OpenAiResponse.class).build();
+                    """
+                    .formatted(word))
+            .text(OpenAiResponse.class)
+            .build();
 
-        StructuredResponse<OpenAiResponse> response = client.responses().create(params);
-        OpenAiResponse result = response.output().stream()
+    StructuredResponse<OpenAiResponse> response = client.responses().create(params);
+    OpenAiResponse result =
+        response.output().stream()
             .flatMap(item -> item.message().stream())
             .flatMap(message -> message.content().stream())
             .flatMap(content -> content.outputText().stream())
             .findFirst()
             .orElseThrow(() -> new RuntimeException("No structured output found"));
-        return result;
-    }
+    return result;
+  }
 }
