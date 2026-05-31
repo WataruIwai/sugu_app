@@ -1,265 +1,305 @@
 package backend.usage.repository;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.time.LocalDate;
-import java.util.Optional;
-
-import javax.sql.DataSource;
-
-import org.springframework.stereotype.Repository;
-
-import backend.exception.DatabaseException;
 import backend.usage.domain.GuestUsageCount;
 import backend.usage.domain.UserUsageCount;
-import backend.usage.interfaces.UsageCount;
+import java.sql.ResultSet;
+import java.time.LocalDate;
+import java.util.Optional;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Repository;
 
 @Repository
 public class UsageRepository {
-    private final DataSource dataSource;
+  private final JdbcClient jdbcClient;
+  private final int bonusAmount;
 
-    public UsageRepository(DataSource dataSource) {
-        this.dataSource = dataSource;
-    }
+  public UsageRepository(JdbcClient jdbcClient, @Value("${usage.bonus-amount}") int bonusAmount) {
+    this.jdbcClient = jdbcClient;
+    this.bonusAmount = bonusAmount;
+  }
 
-    public  Optional<UserUsageCount> getUserUsage(long userId) {
-        String sql = "SELECT id, user_id, usage_date, base_limit, bonus_count, used_count, bonus_used_count FROM user_search_usage WHERE user_id = ? AND usage_date = ?";
+  public Optional<UserUsageCount> getUserUsage(long userId) {
+    String sql =
+        """
+            SELECT id, user_id, usage_date, base_limit, bonus_count, used_count, bonus_used_count
+            FROM user_search_usage
+            WHERE user_id = :userId AND usage_date = :usageDate
+        """;
 
-        try (
-            Connection connection = dataSource.getConnection();
-            PreparedStatement statement = connection.prepareStatement(sql)
-        ) {
-            statement.setLong(1, userId);
-            LocalDate today = LocalDate.now();
-            statement.setDate(2, java.sql.Date.valueOf(today));
+    return jdbcClient
+        .sql(sql)
+        .param("userId", userId)
+        .param("usageDate", java.sql.Date.valueOf(LocalDate.now()))
+        .query((ResultSet rs, int rowNum) -> toUserUsageCount(rs))
+        .optional();
+  }
 
-            try (ResultSet resultSet = statement.executeQuery()) {
-                if (resultSet.next()) {
-                    UserUsageCount userUsageCount = new UserUsageCount(
-                        resultSet.getLong("id"),
-                        resultSet.getLong("user_id"),
-                        resultSet.getDate("usage_date").toLocalDate(),
-                        resultSet.getInt("base_limit"),
-                        resultSet.getInt("bonus_count"),
-                        resultSet.getInt("used_count"),
-                        resultSet.getInt("bonus_used_count")
-                    );
-                    return Optional.of(userUsageCount);
-                }
-            }
-        } catch (SQLException e) {
-            throw new DatabaseException("Failed to get user's usage", e);
-        }
+  public UserUsageCount createUserUsage(long userId) {
+    String sql =
+        """
+            INSERT INTO user_search_usage (user_id, usage_date)
+            VALUES (:userId, :usageDate)
+            ON CONFLICT (user_id, usage_date) DO NOTHING
+            RETURNING id, user_id, usage_date, base_limit, bonus_count, used_count, bonus_used_count
+        """;
 
-        return Optional.empty();
-    }
+    return jdbcClient
+        .sql(sql)
+        .param("userId", userId)
+        .param("usageDate", java.sql.Date.valueOf(LocalDate.now()))
+        .query((ResultSet rs, int rowNum) -> toUserUsageCount(rs))
+        .optional()
+        .orElseGet(
+            () ->
+                getUserUsage(userId)
+                    .orElseThrow(
+                        () -> new RuntimeException("Failed to load user usage after conflict")));
+  }
 
-    public UserUsageCount createUserUsage(long userId) {
-        String sql = """
-                INSERT INTO user_search_usage (user_id, usage_date)
-                VALUES (?, ?)
-                ON CONFLICT (user_id, usage_date) DO NOTHING
-                RETURNING id, user_id, usage_date, base_limit, bonus_count, used_count, bonus_used_count
-                """;;
+  public void addBonusCountToUserUsage(UserUsageCount usage) {
+    String sql =
+        """
+            UPDATE user_search_usage
+            SET bonus_count = bonus_count + :bonusAmount
+            WHERE user_id = :userId AND usage_date = :usageDate
+        """;
 
-        try (
-            Connection connection = dataSource.getConnection();
-            PreparedStatement statement = connection.prepareStatement(sql)
-        ) {
-            statement.setLong(1, userId);
-            LocalDate today = LocalDate.now();
-            statement.setDate(2, java.sql.Date.valueOf(today));
-            try (ResultSet resultSet = statement.executeQuery()) {
-                if(resultSet.next()) {
-                    UserUsageCount userUsageCount = new UserUsageCount(
-                        resultSet.getLong("id"),
-                        resultSet.getLong("user_id"),
-                        resultSet.getDate("usage_date").toLocalDate(),
-                        resultSet.getInt("base_limit"),
-                        resultSet.getInt("bonus_count"),
-                        resultSet.getInt("used_count"),
-                        resultSet.getInt("bonus_used_count")
-                    );
-                    return userUsageCount;
-                }
-                //conflict対策、同時アクセスでも壊れないようにする
-                return getUserUsage(userId).orElseThrow(() -> new RuntimeException("Failed to load user usage after conflict"));
+    jdbcClient
+        .sql(sql)
+        .param("bonusAmount", bonusAmount)
+        .param("userId", usage.getUserId())
+        .param("usageDate", java.sql.Date.valueOf(usage.getUsageDate()))
+        .update();
+  }
 
-            }
-        } catch (SQLException e) {
-            throw new DatabaseException("Failed to create user's usage", e);
-        }
-    }
+  /**
+   * 通常検索回数を1回消費する。 後続処理が失敗した場合は rollbackUserUsage で戻す。
+   *
+   * @param usage 消費対象のユーザー検索回数
+   * @return 消費できた場合 true、上限到達で更新されなかった場合 false
+   */
+  public boolean consumeUserUsage(UserUsageCount usage) {
+    String sql =
+        """
+            UPDATE user_search_usage
+            SET used_count = used_count + 1
+            WHERE user_id = :userId
+            AND usage_date = :usageDate
+            AND used_count < base_limit
+        """;
 
-    public void updateUserUsage(UserUsageCount usage) {
-        String sql = "UPDATE user_search_usage SET used_count = ? WHERE user_id = ? AND usage_date = ?";
+    int affectedRows =
+        jdbcClient
+            .sql(sql)
+            .param("userId", usage.getUserId())
+            .param("usageDate", java.sql.Date.valueOf(usage.getUsageDate()))
+            .update();
 
-        try (
-            Connection connection = dataSource.getConnection();
-            PreparedStatement statement = connection.prepareStatement(sql)
-        ) {
-            statement.setInt(1, usage.getUsedCount());
-            statement.setLong(2, usage.getUserId());
-            statement.setDate(3, java.sql.Date.valueOf(usage.getUsageDate()));
+    return affectedRows == 1;
+  }
 
-            int affectedRows = statement.executeUpdate();
-        } catch (SQLException e) {
-            throw new DatabaseException("Failed to update user's usage", e);
-        }
-    }
+  public void rollbackUserUsage(UserUsageCount usage) {
+    String sql =
+        """
+            UPDATE user_search_usage
+            SET used_count = used_count - 1
+            WHERE user_id = :userId
+            AND usage_date = :usageDate
+            AND used_count > 0
+        """;
 
-    public void addBonusCountToUserUsage(UserUsageCount usage) {
-        String sql = "UPDATE user_search_usage SET bonus_count = bonus_count + 3 WHERE user_id  = ? AND usage_date = ?";
+    jdbcClient
+        .sql(sql)
+        .param("userId", usage.getUserId())
+        .param("usageDate", java.sql.Date.valueOf(usage.getUsageDate()))
+        .update();
+  }
 
-        try (
-            Connection connection = dataSource.getConnection();
-            PreparedStatement statement = connection.prepareStatement(sql)
-        ) {
-            statement.setLong(1, usage.getUserId());
-            statement.setDate(2, java.sql.Date.valueOf(usage.getUsageDate()));
+  public boolean consumeUserBonusUsage(UserUsageCount usage) {
+    String sql =
+        """
+            UPDATE user_search_usage
+            SET bonus_used_count = bonus_used_count + 1
+            WHERE user_id = :userId
+            AND usage_date = :usageDate
+            AND bonus_used_count < bonus_count
+        """;
 
-            int affectedRows = statement.executeUpdate();
-        } catch (SQLException e) {
-            throw new DatabaseException("Failed to add bonus count", e);
-        }
-    }
+    int affectedRows =
+        jdbcClient
+            .sql(sql)
+            .param("userId", usage.getUserId())
+            .param("usageDate", java.sql.Date.valueOf(usage.getUsageDate()))
+            .update();
 
-    public void updateBonusUserUsage(UserUsageCount usage) {
-        String sql = "UPDATE user_search_usage SET bonus_used_count = ? WHERE user_id  = ? AND usage_date = ?";
+    return affectedRows == 1;
+  }
 
-        try (
-            Connection connection = dataSource.getConnection();
-            PreparedStatement statement = connection.prepareStatement(sql)
-        ) {
-            statement.setInt(1, usage.getBonusUsedCount());
-            statement.setLong(2, usage.getUserId());
-            statement.setDate(3, java.sql.Date.valueOf(usage.getUsageDate()));
+  public void rollbackUserBonusUsage(UserUsageCount usage) {
+    String sql =
+        """
+            UPDATE user_search_usage
+            SET bonus_used_count = bonus_used_count - 1
+            WHERE user_id = :userId
+            AND usage_date = :usageDate
+            AND bonus_used_count > 0
+        """;
 
-            int affectedRows = statement.executeUpdate();
-        } catch (SQLException e) {
-            throw new DatabaseException("Failed to add bonus count", e);
-        }
-    }
+    jdbcClient
+        .sql(sql)
+        .param("userId", usage.getUserId())
+        .param("usageDate", java.sql.Date.valueOf(usage.getUsageDate()))
+        .update();
+  }
 
-    public  Optional<GuestUsageCount> getGuestUsage(String guestId) {
-        String sql = "SELECT id, guest_id, usage_date, base_limit, bonus_count, used_count, bonus_used_count FROM guest_search_usage WHERE guest_id = ? AND usage_date = ?";
+  public Optional<GuestUsageCount> getGuestUsage(String guestId) {
+    String sql =
+        """
+            SELECT id, guest_id, usage_date, base_limit, bonus_count, used_count, bonus_used_count
+            FROM guest_search_usage
+            WHERE guest_id = :guestId AND usage_date = :usageDate
+        """;
 
-        try (
-            Connection connection = dataSource.getConnection();
-            PreparedStatement statement = connection.prepareStatement(sql)
-        ) {
-            statement.setString(1, guestId);
-            LocalDate today = LocalDate.now();
-            statement.setDate(2, java.sql.Date.valueOf(today));
+    return jdbcClient
+        .sql(sql)
+        .param("guestId", guestId)
+        .param("usageDate", java.sql.Date.valueOf(LocalDate.now()))
+        .query((ResultSet rs, int rowNum) -> toGuestUsageCount(rs))
+        .optional();
+  }
 
-            try (ResultSet resultSet = statement.executeQuery()) {
-                if (resultSet.next()) {
-                    GuestUsageCount guestUsageCount = new GuestUsageCount(
-                        resultSet.getLong("id"),
-                        resultSet.getString("guest_id"),
-                        resultSet.getDate("usage_date").toLocalDate(),
-                        resultSet.getInt("base_limit"),
-                        resultSet.getInt("bonus_count"),
-                        resultSet.getInt("used_count"),
-                        resultSet.getInt("bonus_used_count")
-                    );
-                    return Optional.of(guestUsageCount);
-                }
-            }
-        } catch (SQLException e) {
-            throw new DatabaseException("Failed to get guest's usage", e);
-        }
+  public GuestUsageCount createGuestUsage(String guestId) {
+    String sql =
+        """
+            INSERT INTO guest_search_usage (guest_id, usage_date)
+            VALUES (:guestId, :usageDate)
+            ON CONFLICT (guest_id, usage_date) DO NOTHING
+            RETURNING id, guest_id, usage_date, base_limit, bonus_count, used_count, bonus_used_count
+        """;
 
-        return Optional.empty();
-    }
+    return jdbcClient
+        .sql(sql)
+        .param("guestId", guestId)
+        .param("usageDate", java.sql.Date.valueOf(LocalDate.now()))
+        .query((ResultSet rs, int rowNum) -> toGuestUsageCount(rs))
+        .optional()
+        .orElseGet(
+            () ->
+                getGuestUsage(guestId)
+                    .orElseThrow(
+                        () -> new RuntimeException("Failed to load guest usage after conflict")));
+  }
 
-    public GuestUsageCount createGuestUsage(String guestId) {
-        String sql = """
-                INSERT INTO guest_search_usage (guest_id, usage_date)
-                VALUES (?, ?)
-                ON CONFLICT (guest_id, usage_date) DO NOTHING
-                RETURNING id, guest_id, usage_date, base_limit, bonus_count, used_count, bonus_used_count
-                """;;
+  public void addBonusCountToGuestUsage(GuestUsageCount usage) {
+    String sql =
+        """
+            UPDATE guest_search_usage
+            SET bonus_count = bonus_count + :bonusAmount
+            WHERE guest_id = :guestId AND usage_date = :usageDate
+        """;
 
-        try (
-            Connection connection = dataSource.getConnection();
-            PreparedStatement statement = connection.prepareStatement(sql)
-        ) {
-            statement.setString(1, guestId);
-            LocalDate today = LocalDate.now();
-            statement.setDate(2, java.sql.Date.valueOf(today));
-            try (ResultSet resultSet = statement.executeQuery()) {
-                if(resultSet.next()) {
-                    GuestUsageCount guestUsageCount = new GuestUsageCount(
-                        resultSet.getLong("id"),
-                        resultSet.getString("guest_id"),
-                        resultSet.getDate("usage_date").toLocalDate(),
-                        resultSet.getInt("base_limit"),
-                        resultSet.getInt("bonus_count"),
-                        resultSet.getInt("used_count"),
-                        resultSet.getInt("bonus_used_count")
-                    );
-                    return guestUsageCount;
-                }
-                //conflict対策、同時アクセスでも壊れないようにする
-                return getGuestUsage(guestId).orElseThrow(() -> new RuntimeException("Failed to load user usage after conflict"));
+    jdbcClient
+        .sql(sql)
+        .param("bonusAmount", bonusAmount)
+        .param("guestId", usage.getGuestId())
+        .param("usageDate", java.sql.Date.valueOf(usage.getUsageDate()))
+        .update();
+  }
 
-            }
-        } catch (SQLException e) {
-            throw new DatabaseException("Failed to guest's usage", e);
-        }
-    }
+  public boolean consumeGuestUsage(GuestUsageCount usage) {
+    String sql =
+        """
+            UPDATE guest_search_usage
+            SET used_count = used_count + 1
+            WHERE guest_id = :guestId
+            AND usage_date = :usageDate
+            AND used_count < base_limit
+        """;
 
-    public void updateGuestUsage(GuestUsageCount usage) {
-        String sql = "UPDATE guest_search_usage SET used_count = ? WHERE guest_id = ? AND usage_date = ?";
+    int affectedRows =
+        jdbcClient
+            .sql(sql)
+            .param("guestId", usage.getGuestId())
+            .param("usageDate", java.sql.Date.valueOf(usage.getUsageDate()))
+            .update();
 
-        try (
-            Connection connection = dataSource.getConnection();
-            PreparedStatement statement = connection.prepareStatement(sql)
-        ) {
-            statement.setInt(1, usage.getUsedCount());
-            statement.setString(2, usage.getGuestId());
-            statement.setDate(3, java.sql.Date.valueOf(usage.getUsageDate()));
+    return affectedRows == 1;
+  }
 
-            int affectedRows = statement.executeUpdate();
-        } catch (SQLException e) {
-            throw new DatabaseException("Failed to update guest's usage", e);
-        }
-    }
+  public void rollbackGuestUsage(GuestUsageCount usage) {
+    String sql =
+        """
+            UPDATE guest_search_usage
+            SET used_count = used_count - 1
+            WHERE guest_id = :guestId
+            AND usage_date = :usageDate
+            AND used_count > 0
+        """;
 
-    public void addBonusCountToGuestUsage(GuestUsageCount usage) {
-        String sql = "UPDATE guest_search_usage SET bonus_count = bonus_count + 3 WHERE guest_id = ? AND usage_date = ?";
+    jdbcClient
+        .sql(sql)
+        .param("guestId", usage.getGuestId())
+        .param("usageDate", java.sql.Date.valueOf(usage.getUsageDate()))
+        .update();
+  }
 
-        try (
-            Connection connection = dataSource.getConnection();
-            PreparedStatement statement = connection.prepareStatement(sql)
-        ) {
-            statement.setString(1, usage.getGuestId());
-            statement.setDate(2, java.sql.Date.valueOf(usage.getUsageDate()));
+  public boolean consumeGuestBonusUsage(GuestUsageCount usage) {
+    String sql =
+        """
+            UPDATE guest_search_usage
+            SET bonus_used_count = bonus_used_count + 1
+            WHERE guest_id = :guestId
+            AND usage_date = :usageDate
+            AND bonus_used_count < bonus_count
+        """;
 
-            int affectedRows = statement.executeUpdate();
-        } catch (SQLException e) {
-            throw new DatabaseException("Failed to add guest bonus count", e);
-        }
-    }
+    int affectedRows =
+        jdbcClient
+            .sql(sql)
+            .param("guestId", usage.getGuestId())
+            .param("usageDate", java.sql.Date.valueOf(usage.getUsageDate()))
+            .update();
 
-    public void updateBonusGuestUsage(GuestUsageCount usage) {
-        String sql = "UPDATE guest_search_usage SET bonus_used_count = ? WHERE guest_id = ? AND usage_date = ?";
+    return affectedRows == 1;
+  }
 
-        try (
-            Connection connection = dataSource.getConnection();
-            PreparedStatement statement = connection.prepareStatement(sql)
-        ) {
-            statement.setInt(1, usage.getBonusUsedCount());
-            statement.setString(2, usage.getGuestId());
-            statement.setDate(3, java.sql.Date.valueOf(usage.getUsageDate()));
+  public void rollbackGuestBonusUsage(GuestUsageCount usage) {
+    String sql =
+        """
+            UPDATE guest_search_usage
+            SET bonus_used_count = bonus_used_count - 1
+            WHERE guest_id = :guestId
+            AND usage_date = :usageDate
+            AND bonus_used_count > 0
+        """;
 
-            int affectedRows = statement.executeUpdate();
-        } catch (SQLException e) {
-            throw new DatabaseException("Failed to update guest bonus count", e);
-        }
-    }
+    jdbcClient
+        .sql(sql)
+        .param("guestId", usage.getGuestId())
+        .param("usageDate", java.sql.Date.valueOf(usage.getUsageDate()))
+        .update();
+  }
 
+  private UserUsageCount toUserUsageCount(ResultSet rs) throws java.sql.SQLException {
+    return new UserUsageCount(
+        rs.getLong("id"),
+        rs.getLong("user_id"),
+        rs.getDate("usage_date").toLocalDate(),
+        rs.getInt("base_limit"),
+        rs.getInt("bonus_count"),
+        rs.getInt("used_count"),
+        rs.getInt("bonus_used_count"));
+  }
+
+  private GuestUsageCount toGuestUsageCount(ResultSet rs) throws java.sql.SQLException {
+    return new GuestUsageCount(
+        rs.getLong("id"),
+        rs.getString("guest_id"),
+        rs.getDate("usage_date").toLocalDate(),
+        rs.getInt("base_limit"),
+        rs.getInt("bonus_count"),
+        rs.getInt("used_count"),
+        rs.getInt("bonus_used_count"));
+  }
 }

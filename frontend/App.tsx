@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Linking, Platform } from "react-native";
 import * as AppleAuthentication from "expo-apple-authentication";
+import * as Crypto from "expo-crypto";
 import {
     getTrackingPermissionsAsync,
     requestTrackingPermissionsAsync,
@@ -48,6 +49,46 @@ type SearchReturnScreen = "signin" | "list" | "detail";
 const normalizeToken = (raw: string) => raw.trim().replace(/^"|"$/g, "");
 const MIN_BOOT_SPLASH_DURATION_MS = 2000;
 const FORCE_SHOW_ONBOARDING = false;
+const ERROR_MESSAGE_BY_CODE: Record<string, string> = {
+    BAD_REQUEST: "入力内容に誤りがあります",
+    UNAUTHORIZED: "認証に失敗しました",
+    NOT_FOUND: "データが見つかりませんでした",
+    CONFLICT: "既に登録されています",
+    TOO_MANY_REQUESTS: "本日の検索回数の上限に達しました",
+    INTERNAL_SERVER_ERROR: "サーバーエラーが発生しました",
+    INTERNAL_ERROR: "サーバーエラーが発生しました",
+};
+
+const resolveServerErrorMessage = (
+    serverMessage: string | null | undefined,
+    fallbackMessage: string,
+) => {
+    if (!serverMessage) {
+        return fallbackMessage;
+    }
+
+    return ERROR_MESSAGE_BY_CODE[serverMessage] ?? serverMessage;
+};
+
+const parseServerErrorMessage = (
+    rawResponseText: string,
+    fallbackMessage: string,
+) => {
+    try {
+        const errorData = JSON.parse(rawResponseText) as {
+            message?: string;
+        };
+
+        return resolveServerErrorMessage(errorData.message, fallbackMessage);
+    } catch {
+        return fallbackMessage;
+    }
+};
+
+const generateNonce = (byteLength = 32) =>
+    Array.from(Crypto.getRandomBytes(byteLength))
+        .map((byte) => byte.toString(16).padStart(2, "0"))
+        .join("");
 
 export default function App() {
     const bootStartedAtRef = useRef(Date.now());
@@ -103,36 +144,39 @@ export default function App() {
         `guest_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
 
     const fetchWords = async (currentToken: string) => {
-        console.log("Fetch words started.");
-        const response = await fetch(`${API_BASE_URL}/words`, {
+        const response = await fetch(`${API_BASE_URL}/api/v1/words`, {
             headers: {
                 Authorization: `Bearer ${currentToken}`,
             },
         });
 
-        console.log("Fetch words response received:", response.status);
-
         if (!response.ok) {
-            const rawResponseText = await response.text();
-            console.log("Fetch words response status:", response.status);
-            console.log("Fetch words response body:", rawResponseText);
-            throw new Error("単語一覧の取得に失敗しました。");
+            throw new Error(
+                parseServerErrorMessage(
+                    await response.text(),
+                    "単語一覧の取得に失敗しました。",
+                ),
+            );
         }
 
         const data = (await response.json()) as WordItem[];
-        console.log("Fetch words response data:", data);
         setWords(data);
     };
 
     const fetchWordDetail = async (wordId: number, currentToken: string) => {
-        const response = await fetch(`${API_BASE_URL}/words/${wordId}`, {
+        const response = await fetch(`${API_BASE_URL}/api/v1/words/${wordId}`, {
             headers: {
                 Authorization: `Bearer ${currentToken}`,
             },
         });
 
         if (!response.ok) {
-            throw new Error("単語詳細の取得に失敗しました。");
+            throw new Error(
+                parseServerErrorMessage(
+                    await response.text(),
+                    "単語詳細の取得に失敗しました。",
+                ),
+            );
         }
 
         const data = (await response.json()) as WordDetailItem;
@@ -197,11 +241,18 @@ export default function App() {
                 );
             }
 
+            const rawNonce = generateNonce();
+            const expectedNonceHash = await Crypto.digestStringAsync(
+                Crypto.CryptoDigestAlgorithm.SHA256,
+                rawNonce,
+            );
+
             const credential = await AppleAuthentication.signInAsync({
                 requestedScopes: [
                     AppleAuthentication.AppleAuthenticationScope.EMAIL,
                     AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
                 ],
+                nonce: expectedNonceHash,
             });
 
             if (!credential.identityToken) {
@@ -210,30 +261,26 @@ export default function App() {
                 );
             }
 
-            const response = await fetch(`${API_BASE_URL}/auth/apple`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/auth/apple`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
                     identityToken: credential.identityToken,
+                    expectedNonceHash,
                     agreedToTerms,
                 }),
             });
 
             if (!response.ok) {
                 const rawResponseText = await response.text();
-
-                try {
-                    const errorData = JSON.parse(rawResponseText) as {
-                        message?: string;
-                    };
-                    throw new Error(
-                        errorData.message ?? "Apple ログインに失敗しました。",
-                    );
-                } catch {
-                    throw new Error("Apple ログインに失敗しました。");
-                }
+                throw new Error(
+                    parseServerErrorMessage(
+                        rawResponseText,
+                        "Apple ログインに失敗しました。",
+                    ),
+                );
             }
 
             const currentToken = normalizeToken(await response.text());
@@ -321,7 +368,7 @@ export default function App() {
         setErrorMessage(null);
 
         try {
-            const response = await fetch(`${API_BASE_URL}/words/${wordId}`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/words/${wordId}`, {
                 method: "DELETE",
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -329,7 +376,12 @@ export default function App() {
             });
 
             if (!response.ok) {
-                throw new Error("単語の削除に失敗しました。");
+                throw new Error(
+                    parseServerErrorMessage(
+                        await response.text(),
+                        "単語の削除に失敗しました。",
+                    ),
+                );
             }
 
             await fetchWords(token);
@@ -383,7 +435,7 @@ export default function App() {
 
         try {
             const response = await fetch(
-                `${API_BASE_URL}/api/dictionary/search`,
+                `${API_BASE_URL}/api/v1/dictionary/search`,
                 {
                     method: "POST",
                     headers: {
@@ -399,20 +451,11 @@ export default function App() {
 
             const rawResponseText = await response.text();
 
-            console.log("Dictionary search response status:", response.status);
-            console.log("Dictionary search response body:", rawResponseText);
-
             if (!response.ok) {
-                let serverMessage: string | null = null;
-
-                try {
-                    const errorData = JSON.parse(rawResponseText) as {
-                        message?: string;
-                    };
-                    serverMessage = errorData.message ?? null;
-                } catch {
-                    serverMessage = null;
-                }
+                const serverMessage = parseServerErrorMessage(
+                    rawResponseText,
+                    "検索に失敗しました。",
+                );
 
                 const isSearchLimitError =
                     response.status === 429 ||
@@ -423,7 +466,7 @@ export default function App() {
                 if (isSearchLimitError) {
                     setSearchErrorMessage(null);
                     openSearchBonusPrompt(
-                        "本日の検索上限です",
+                        serverMessage,
                         canUseRewardedSearchBonusAd()
                             ? "広告を視聴すると、追加で3回検索できます。"
                             : "広告機能の準備ができていません。開発用ビルドで確認してください。",
@@ -431,11 +474,10 @@ export default function App() {
                     return;
                 }
 
-                throw new Error(serverMessage ?? "検索に失敗しました。");
+                throw new Error(serverMessage);
             }
 
             const data = JSON.parse(rawResponseText) as SearchResult;
-            console.log(data);
             setSearchBonusPromptVisible(false);
             setSearchBonusPromptErrorMessage(null);
             setSearchResult(data);
@@ -472,7 +514,7 @@ export default function App() {
         setSearchErrorMessage(null);
 
         try {
-            const response = await fetch(`${API_BASE_URL}/words`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/words`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -484,7 +526,12 @@ export default function App() {
             });
 
             if (!response.ok) {
-                throw new Error("My List への追加に失敗しました。");
+                throw new Error(
+                    parseServerErrorMessage(
+                        await response.text(),
+                        "My List への追加に失敗しました。",
+                    ),
+                );
             }
 
             await fetchWords(token);
@@ -510,7 +557,7 @@ export default function App() {
     };
 
     const grantSearchBonus = async () => {
-        const response = await fetch(`${API_BASE_URL}/api/usage/bonus`, {
+        const response = await fetch(`${API_BASE_URL}/api/v1/usage/bonus`, {
             method: "POST",
             headers: {
                 ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -519,20 +566,11 @@ export default function App() {
         });
 
         if (!response.ok) {
-            let serverMessage: string | null = null;
-
-            try {
-                const errorData = (await response.json()) as {
-                    message?: string;
-                };
-                serverMessage = errorData.message ?? null;
-            } catch {
-                serverMessage = null;
-            }
-
             throw new Error(
-                serverMessage ??
+                parseServerErrorMessage(
+                    await response.text(),
                     "広告視聴後の特典反映に失敗しました。もう一度お試しください。",
+                ),
             );
         }
     };
@@ -653,7 +691,7 @@ export default function App() {
         setErrorMessage(null);
 
         try {
-            const response = await fetch(`${API_BASE_URL}/user`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/user`, {
                 method: "DELETE",
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -661,19 +699,11 @@ export default function App() {
             });
 
             if (!response.ok) {
-                let serverMessage: string | null = null;
-
-                try {
-                    const errorData = (await response.json()) as {
-                        message?: string;
-                    };
-                    serverMessage = errorData.message ?? null;
-                } catch {
-                    serverMessage = null;
-                }
-
                 throw new Error(
-                    serverMessage ?? "アカウント削除に失敗しました。",
+                    parseServerErrorMessage(
+                        await response.text(),
+                        "アカウント削除に失敗しました。",
+                    ),
                 );
             }
 
