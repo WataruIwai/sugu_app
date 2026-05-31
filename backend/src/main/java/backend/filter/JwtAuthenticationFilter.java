@@ -67,12 +67,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {
-    return request.getRequestURI().equals("/api/v1/auth/apple");
+    String path = request.getRequestURI();
+    return path.equals("/api/v1/auth/apple") || path.equals("/auth/apple");
   }
 
   private boolean isGuestAllowedPath(HttpServletRequest request) {
     String path = request.getRequestURI();
 
-    return path.equals("/api/v1/dictionary/search") || path.equals("/api/v1/usage/bonus");
+    return path.equals("/api/v1/dictionary/search")
+        || path.equals("/api/dictionary/search")
+        || path.equals("/api/v1/usage/bonus")
+        || path.equals("/api/usage/bonus");
   }
 }

@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 // 検索は未ログインユーザーも可能
 @RestController
-@RequestMapping("/api/v1/dictionary")
+@RequestMapping({"/api/v1/dictionary", "/api/dictionary"})
 public class DictionaryController {
 
   private final DictionaryService dictionaryService;

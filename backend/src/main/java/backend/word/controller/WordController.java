@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("api/v1/words")
+@RequestMapping({"/api/v1/words", "/words"})
 public class WordController {
   private WordService wordService;
 
