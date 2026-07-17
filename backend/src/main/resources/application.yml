@@ -14,7 +14,7 @@ spring:
 
 jwt:
     secret: ${JWT_SECRET}
-    expiration: 24h
+    expiration: 48h
 
 usage:
     bonus-amount: 3
