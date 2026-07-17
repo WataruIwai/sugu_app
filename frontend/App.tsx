@@ -30,7 +30,7 @@ import { BootSplashPage } from "./src/pages/BootSplashPage";
 import { OnboardingPage } from "./src/pages/OnboardingPage";
 import { SearchResult, WordDetailItem, WordItem } from "./src/types";
 
-const API_BASE_URL = "https://vocab-app-7lb5.onrender.com";
+const API_BASE_URL = "http://localhost:8082";
 const TERMS_URL =
     "https://www.notion.so/3559a7163b3880239ec3ed3cfed7bbff?source=copy_link";
 const PRIVACY_POLICY_URL =
