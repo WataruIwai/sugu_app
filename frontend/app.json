@@ -16,6 +16,11 @@
       "usesAppleSignIn": true,
       "bundleIdentifier": "com.sugu.ios",
       "buildNumber": "3",
+      "entitlements": {
+        "com.apple.security.application-groups": [
+          "group.com.sugu.ios"
+        ]
+      },
       "infoPlist": {
         "CFBundleDisplayName": "Sugu",
         "ITSAppUsesNonExemptEncryption": false

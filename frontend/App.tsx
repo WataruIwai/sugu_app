@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Linking, Platform } from "react-native";
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as Crypto from "expo-crypto";
@@ -28,7 +28,12 @@ import { WordDetailPage } from "./src/pages/WordDetailPage";
 import { SearchPage } from "./src/pages/SearchPage";
 import { BootSplashPage } from "./src/pages/BootSplashPage";
 import { OnboardingPage } from "./src/pages/OnboardingPage";
-import { SearchResult, WordDetailItem, WordItem } from "./src/types";
+import type { SearchResult, WordDetailItem, WordItem } from "./src/types";
+import {
+    clearSuguWidgetWords,
+    getSuguWidgetSnapshot,
+    syncSuguWidgetWords,
+} from "./src/widget/suguWidget";
 
 const API_BASE_URL = "http://localhost:8082";
 const TERMS_URL =
@@ -49,6 +54,103 @@ type SearchReturnScreen = "signin" | "list" | "detail";
 const normalizeToken = (raw: string) => raw.trim().replace(/^"|"$/g, "");
 const MIN_BOOT_SPLASH_DURATION_MS = 2000;
 const FORCE_SHOW_ONBOARDING = false;
+const SUGU_WIDGET_REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const SUGU_WIDGET_MIN_DAILY_WORDS = 5;
+const SUGU_WIDGET_MAX_DAILY_WORDS = 10;
+type SuguDeepLink =
+    | { type: "word"; wordId: number }
+    | { type: "search"; word?: string };
+
+const getQueryValue = (query: string | undefined, key: string) => {
+    if (!query) {
+        return undefined;
+    }
+
+    const pair = query
+        .split("&")
+        .map((part) => part.split("="))
+        .find(([name]) => decodeURIComponent(name) === key);
+
+    return pair?.[1]
+        ? decodeURIComponent(pair[1].replace(/\+/g, " "))
+        : undefined;
+};
+
+const parseSuguDeepLink = (url: string): SuguDeepLink | null => {
+    if (!url.startsWith("sugu://")) {
+        return null;
+    }
+
+    const [baseUrl, query] = url.split("?");
+    const path = baseUrl.replace("sugu://", "");
+
+    if (path.startsWith("word/")) {
+        const wordId = Number(path.replace("word/", ""));
+        return Number.isFinite(wordId) ? { type: "word", wordId } : null;
+    }
+
+    if (path === "search") {
+        return { type: "search", word: getQueryValue(query, "word") };
+    }
+
+    return null;
+};
+
+const shuffleWords = (wordList: WordItem[]) => {
+    const shuffled = [...wordList];
+
+    for (let index = shuffled.length - 1; index > 0; index -= 1) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        [shuffled[index], shuffled[swapIndex]] = [
+            shuffled[swapIndex],
+            shuffled[index],
+        ];
+    }
+
+    return shuffled;
+};
+
+const pickDailyWidgetWords = (wordList: WordItem[]) => {
+    const maxCount = Math.min(SUGU_WIDGET_MAX_DAILY_WORDS, wordList.length);
+    const minCount = Math.min(SUGU_WIDGET_MIN_DAILY_WORDS, maxCount);
+    const count =
+        minCount +
+        Math.floor(Math.random() * (maxCount - minCount + 1));
+
+    return shuffleWords(wordList).slice(0, count);
+};
+
+const shouldRefreshSuguWidgetSnapshot = async (wordCount: number) => {
+    const snapshot = await getSuguWidgetSnapshot();
+
+    if (!snapshot) {
+        return true;
+    }
+
+    try {
+        const parsed = JSON.parse(snapshot) as {
+            updatedAt?: string;
+            words?: unknown[];
+        };
+        const updatedAt = parsed.updatedAt
+            ? new Date(parsed.updatedAt).getTime()
+            : Number.NaN;
+        const hasWords = Array.isArray(parsed.words) && parsed.words.length > 0;
+        const expectedMinimumWords = Math.min(
+            SUGU_WIDGET_MIN_DAILY_WORDS,
+            wordCount,
+        );
+
+        return (
+            !Number.isFinite(updatedAt) ||
+            !hasWords ||
+            parsed.words!.length < expectedMinimumWords ||
+            Date.now() - updatedAt >= SUGU_WIDGET_REFRESH_INTERVAL_MS
+        );
+    } catch {
+        return true;
+    }
+};
 const ERROR_MESSAGE_BY_CODE: Record<string, string> = {
     BAD_REQUEST: "入力内容に誤りがあります",
     UNAUTHORIZED: "認証に失敗しました",
@@ -92,6 +194,7 @@ const generateNonce = (byteLength = 32) =>
 
 export default function App() {
     const bootStartedAtRef = useRef(Date.now());
+    const handledInitialUrlRef = useRef<string | null>(null);
     const [screen, setScreen] = useState<Screen>("signin");
     const [token, setToken] = useState<string | null>(null);
     const [guestId, setGuestId] = useState<string | null>(null);
@@ -143,6 +246,52 @@ export default function App() {
     const buildGuestId = () =>
         `guest_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
 
+    const buildSuguWidgetWords = async (
+        wordList: WordItem[],
+        currentToken: string,
+    ) => {
+        if (wordList.length === 0) {
+            return [];
+        }
+
+        const pickedWords = pickDailyWidgetWords(wordList);
+        const widgetWords: Array<WordItem & { meaningCount?: number }> = [];
+
+        for (const pickedWord of pickedWords) {
+            try {
+                const response = await fetch(
+                    `${API_BASE_URL}/api/v1/words/${pickedWord.id}`,
+                    {
+                        headers: {
+                            Authorization: `Bearer ${currentToken}`,
+                        },
+                    },
+                );
+
+                if (!response.ok) {
+                    throw new Error(await response.text());
+                }
+
+                const detail = (await response.json()) as WordDetailItem;
+                const primaryEntry = detail.entries[0];
+
+                widgetWords.push({
+                    ...pickedWord,
+                    word: detail.word || pickedWord.word,
+                    meaningEnglish: primaryEntry?.meaning_en ?? "",
+                    meaningJapanese: primaryEntry?.meaning_ja ?? "",
+                    memo: primaryEntry?.example ?? pickedWord.memo,
+                    meaningCount: detail.entries.length,
+                });
+            } catch (error) {
+                console.log("Sugu widget detail sync fallback:", error);
+                widgetWords.push(pickedWord);
+            }
+        }
+
+        return widgetWords;
+    };
+
     const fetchWords = async (currentToken: string) => {
         const response = await fetch(`${API_BASE_URL}/api/v1/words`, {
             headers: {
@@ -161,6 +310,22 @@ export default function App() {
 
         const data = (await response.json()) as WordItem[];
         setWords(data);
+
+        if (Platform.OS !== "ios") {
+            return data;
+        }
+
+        if (data.length === 0) {
+            await syncSuguWidgetWords([]);
+        } else if (await shouldRefreshSuguWidgetSnapshot(data.length)) {
+            await syncSuguWidgetWords(
+                await buildSuguWidgetWords(data, currentToken),
+            );
+        } else {
+            console.log("Sugu widget sync skipped: daily snapshot is fresh");
+        }
+
+        return data;
     };
 
     const fetchWordDetail = async (wordId: number, currentToken: string) => {
@@ -360,6 +525,52 @@ export default function App() {
             setLoading(false);
         }
     };
+
+    const handleSuguDeepLink = useCallback(
+        async (url: string) => {
+            const deepLink = parseSuguDeepLink(url);
+
+            if (!deepLink) {
+                return;
+            }
+
+            setGuestUpgradePromptVisible(false);
+            setSearchBonusPromptVisible(false);
+            setSearchBonusPromptErrorMessage(null);
+            setErrorMessage(null);
+
+            if (deepLink.type === "search") {
+                setSearchText(deepLink.word ?? "");
+                setSearchResult(null);
+                setSearchErrorMessage(null);
+                setSearchReturnScreen(token ? "list" : "signin");
+                setScreen(token || guestId ? "search" : "signin");
+                return;
+            }
+
+            if (!token) {
+                setScreen("signin");
+                return;
+            }
+
+            setLoading(true);
+
+            try {
+                await fetchWordDetail(deepLink.wordId, token);
+            } catch (error) {
+                setSelectedWord(null);
+                setScreen("list");
+                setErrorMessage(
+                    error instanceof Error
+                        ? error.message
+                        : "単語詳細の取得に失敗しました。",
+                );
+            } finally {
+                setLoading(false);
+            }
+        },
+        [guestId, token],
+    );
 
     const handleDeleteWord = async (wordId: number) => {
         if (!token) return;
@@ -617,6 +828,7 @@ export default function App() {
 
     const handleLogout = async () => {
         await deleteAuthToken();
+        await clearSuguWidgetWords();
         setToken(null);
         setWords([]);
         setSelectedWord(null);
@@ -785,6 +997,33 @@ export default function App() {
 
         void restoreAuth();
     }, [bootstrapping]);
+
+    useEffect(() => {
+        if (bootstrapping) {
+            return;
+        }
+
+        const handleInitialUrl = async () => {
+            const initialUrl = await Linking.getInitialURL();
+
+            if (!initialUrl || handledInitialUrlRef.current === initialUrl) {
+                return;
+            }
+
+            handledInitialUrlRef.current = initialUrl;
+            await handleSuguDeepLink(initialUrl);
+        };
+
+        void handleInitialUrl();
+
+        const subscription = Linking.addEventListener("url", ({ url }) => {
+            void handleSuguDeepLink(url);
+        });
+
+        return () => {
+            subscription.remove();
+        };
+    }, [bootstrapping, handleSuguDeepLink]);
 
     useEffect(() => {
         if (!authenticated) {
