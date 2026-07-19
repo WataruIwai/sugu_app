@@ -53,9 +53,9 @@ class AuthServiceTest {
         when(userRepository.getUserByProviderUserId("sub")).thenReturn(User.fromDb(
             1L,
             "email",
-            null,
             "apple",
-            "sub"));
+            "sub",
+            null));
         when(jwtService.generateToken(1L)).thenReturn("jwt-token");
 
         String token = authService.signInWithAppleAuth(request);

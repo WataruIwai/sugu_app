@@ -1,24 +1,25 @@
 package backend.user.domain;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 public class User {
   private long id;
   private String email;
-  private String passwordHash;
   private String authProvider;
   private String providerUserId;
   private String termsVersion;
   private LocalDateTime agreedTermsAt;
+  private UUID appAccountToken;
 
   // DBから取得したユーザー情報
   private User(
-      long id, String email, String passwordHash, String authProvider, String providerUserId) {
+      long id, String email, String authProvider, String providerUserId, UUID appAccountToken) {
     this.id = id;
     this.email = email;
-    this.passwordHash = passwordHash;
     this.authProvider = authProvider;
     this.providerUserId = providerUserId;
+    this.appAccountToken = appAccountToken;
   }
 
   private User(
@@ -26,17 +27,19 @@ public class User {
       String authProvider,
       String providerUserId,
       String termsVersion,
-      LocalDateTime agreedTermsAt) {
+      LocalDateTime agreedTermsAt,
+      UUID appAccountToken) {
     this.email = email;
     this.authProvider = authProvider;
     this.providerUserId = providerUserId;
     this.termsVersion = termsVersion;
     this.agreedTermsAt = agreedTermsAt;
+    this.appAccountToken = appAccountToken;
   }
 
   public static User fromDb(
-      long id, String email, String passwordHash, String authProvider, String providerUserId) {
-    return new User(id, email, passwordHash, authProvider, providerUserId);
+      long id, String email, String authProvider, String providerUserId, UUID appAccountToken) {
+    return new User(id, email, authProvider, providerUserId, appAccountToken);
   }
 
   public static User forAppleSignUp(
@@ -44,8 +47,9 @@ public class User {
       String authProvider,
       String providerUserId,
       String termsVersion,
-      LocalDateTime agreedTermsAt) {
-    return new User(email, authProvider, providerUserId, termsVersion, agreedTermsAt);
+      LocalDateTime agreedTermsAt,
+      UUID appAccountToken) {
+    return new User(email, authProvider, providerUserId, termsVersion, agreedTermsAt, appAccountToken);
   }
 
   public long getId() {
@@ -54,10 +58,6 @@ public class User {
 
   public String getEmail() {
     return email;
-  }
-
-  public String getPasswordHash() {
-    return passwordHash;
   }
 
   public String getAuthProvider() {
@@ -74,5 +74,9 @@ public class User {
 
   public LocalDateTime getAgreedTermsAt() {
     return agreedTermsAt;
+  }
+
+  public UUID getAppAccountToken() {
+    return appAccountToken;
   }
 }
