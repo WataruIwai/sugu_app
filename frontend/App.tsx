@@ -26,6 +26,7 @@ import { SignInPage } from "./src/pages/SignInPage";
 import { VocabularyListPage } from "./src/pages/VocabularyListPage";
 import { WordDetailPage } from "./src/pages/WordDetailPage";
 import { SearchPage } from "./src/pages/SearchPage";
+import { SuguProPage } from "./src/pages/SuguProPage";
 import { BootSplashPage } from "./src/pages/BootSplashPage";
 import { OnboardingPage } from "./src/pages/OnboardingPage";
 import type { SearchResult, WordDetailItem, WordItem } from "./src/types";
@@ -48,8 +49,10 @@ type Screen =
     | "signin"
     | "list"
     | "detail"
-    | "search";
+    | "search"
+    | "pro";
 type SearchReturnScreen = "signin" | "list" | "detail";
+type ProReturnScreen = "signin" | "list" | "search";
 
 const normalizeToken = (raw: string) => raw.trim().replace(/^"|"$/g, "");
 const MIN_BOOT_SPLASH_DURATION_MS = 2000;
@@ -215,6 +218,8 @@ export default function App() {
     const [searchResult, setSearchResult] = useState<SearchResult | null>(null);
     const [searchReturnScreen, setSearchReturnScreen] =
         useState<SearchReturnScreen>("list");
+    const [proReturnScreen, setProReturnScreen] =
+        useState<ProReturnScreen>("list");
 
     const [loading, setLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -627,6 +632,23 @@ export default function App() {
         setSearchBonusPromptErrorMessage(null);
         setScreen(searchReturnScreen);
     };
+
+    const handleOpenPro = (from: ProReturnScreen) => {
+        setProReturnScreen(from);
+        setListMenuOpen(false);
+        setGuestUpgradePromptVisible(false);
+        setSearchBonusPromptVisible(false);
+        setSearchBonusPromptErrorMessage(null);
+        setScreen("pro");
+    };
+
+    const handleBackFromPro = () => {
+        setScreen(proReturnScreen);
+    };
+
+    const handlePurchase = () => {};
+
+    const handleRestore = () => {};
 
     const handleDictionarySearch = async () => {
         if (!token && !guestId) {
@@ -1098,6 +1120,7 @@ export default function App() {
                 onOpenTerms={handleOpenTerms}
                 onOpenPrivacyPolicy={handleOpenPrivacyPolicy}
                 onOpenSupport={handleOpenSupport}
+                onOpenPro={() => handleOpenPro("list")}
                 onDeleteAccount={handleDeleteAccount}
                 menuOpen={listMenuOpen}
                 onToggleMenu={() => setListMenuOpen((current) => !current)}
@@ -1143,6 +1166,17 @@ export default function App() {
                     handleNavigateSignUpFromGuestPrompt
                 }
                 onWatchSearchBonusAd={handleWatchSearchBonusAd}
+                onOpenPro={() => handleOpenPro("search")}
+            />
+        );
+    }
+
+    if (screen === "pro") {
+        return (
+            <SuguProPage
+                onBack={handleBackFromPro}
+                onPurchase={handlePurchase}
+                onRestore={handleRestore}
             />
         );
     }

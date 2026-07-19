@@ -31,6 +31,7 @@ type SearchPageProps = {
     onCloseSearchBonusPrompt: () => void;
     onNavigateSignUpFromGuestPrompt: () => void;
     onWatchSearchBonusAd: () => void;
+    onOpenPro: () => void;
 };
 
 export const SearchPage = ({
@@ -56,6 +57,7 @@ export const SearchPage = ({
     onCloseSearchBonusPrompt,
     onNavigateSignUpFromGuestPrompt,
     onWatchSearchBonusAd,
+    onOpenPro,
 }: SearchPageProps) => {
     const loadingProgress = useRef(new Animated.Value(0)).current;
     const [addedToMyList, setAddedToMyList] = useState(false);
@@ -204,6 +206,22 @@ export const SearchPage = ({
                                     </SearchBonusPrimaryText>
                                 </SearchBonusPrimaryButton>
                             </SearchBonusActions>
+                            <SearchBonusDivider />
+                            <SearchBonusProBlock>
+                                <SearchBonusProTitle>Sugu Pro</SearchBonusProTitle>
+                                <SearchBonusProText>広告なし</SearchBonusProText>
+                                <SearchBonusProText>
+                                    検索回数無制限
+                                </SearchBonusProText>
+                                <SearchBonusProButton
+                                    activeOpacity={0.86}
+                                    onPress={onOpenPro}
+                                >
+                                    <SearchBonusProButtonText>
+                                        Sugu Proへアップグレード
+                                    </SearchBonusProButtonText>
+                                </SearchBonusProButton>
+                            </SearchBonusProBlock>
                         </SearchBonusCard>
                     </SearchBonusOverlay>
                 ) : null}
@@ -768,4 +786,45 @@ const SearchBonusPrimaryText = styled.Text`
     color: #ffffff;
     font-size: 15px;
     font-weight: 700;
+`;
+
+const SearchBonusDivider = styled.View`
+    height: 1px;
+    background-color: #dedede;
+    margin: 22px 0 18px;
+`;
+
+const SearchBonusProBlock = styled.View`
+    align-items: stretch;
+`;
+
+const SearchBonusProTitle = styled.Text`
+    color: #161616;
+    font-size: 18px;
+    line-height: 24px;
+    font-weight: 800;
+    margin-bottom: 8px;
+`;
+
+const SearchBonusProText = styled.Text`
+    color: #555555;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 600;
+`;
+
+const SearchBonusProButton = styled.TouchableOpacity`
+    height: 44px;
+    border-radius: 22px;
+    background-color: #1f1f1f;
+    align-items: center;
+    justify-content: center;
+    margin-top: 14px;
+`;
+
+const SearchBonusProButtonText = styled.Text`
+    color: #ffffff;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 800;
 `;
