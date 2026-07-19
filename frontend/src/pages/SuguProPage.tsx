@@ -3,11 +3,18 @@ import { Feather } from "@expo/vector-icons";
 import styled from "styled-components/native";
 
 import { ScreenLayout } from "../layout/ScreenLayout";
+import type { SubscriptionPurchaseState } from "../subscription/subscriptionService";
 
 type SuguProPageProps = {
     onBack: () => void;
     onPurchase: () => void;
     onRestore: () => void;
+    productPrice: string | null;
+    isLoadingProduct: boolean;
+    isPurchasing: boolean;
+    isRestoring: boolean;
+    errorMessage: string | null;
+    purchaseState: SubscriptionPurchaseState;
 };
 
 const PRO_FEATURES = [
@@ -20,6 +27,12 @@ export const SuguProPage = ({
     onBack,
     onPurchase,
     onRestore,
+    productPrice,
+    isLoadingProduct,
+    isPurchasing,
+    isRestoring,
+    errorMessage,
+    purchaseState,
 }: SuguProPageProps) => (
     <ScreenLayout>
         <TopRow>
@@ -49,24 +62,61 @@ export const SuguProPage = ({
         </FeatureList>
 
         <PriceArea>
-            <PricePlaceholder>価格表示エリア</PricePlaceholder>
+            {isLoadingProduct ? (
+                <PricePlaceholder>価格を取得中...</PricePlaceholder>
+            ) : productPrice ? (
+                <PriceRow>
+                    <ProductPrice>{productPrice}</ProductPrice>
+                    <ProductBillingCycle>月額・自動更新</ProductBillingCycle>
+                </PriceRow>
+            ) : (
+                <PricePlaceholder>価格を取得できませんでした</PricePlaceholder>
+            )}
         </PriceArea>
+
+        {errorMessage ? <ErrorText>{errorMessage}</ErrorText> : null}
+        <StatusText>{getPurchaseStateMessage(purchaseState)}</StatusText>
 
         <PrimaryButton
             activeOpacity={0.88}
             onPress={onPurchase}
+            disabled={isLoadingProduct || isPurchasing || isRestoring}
+            $disabled={isLoadingProduct || isPurchasing || isRestoring}
         >
-            <PrimaryButtonText>Sugu Proを始める</PrimaryButtonText>
+            <PrimaryButtonText>
+                {isPurchasing ? "購入処理中..." : "Sugu Proを始める"}
+            </PrimaryButtonText>
         </PrimaryButton>
 
         <SecondaryButton
             activeOpacity={0.84}
             onPress={onRestore}
+            disabled={isPurchasing || isRestoring}
+            $disabled={isPurchasing || isRestoring}
         >
-            <SecondaryButtonText>購入を復元</SecondaryButtonText>
+            <SecondaryButtonText>
+                {isRestoring ? "復元中..." : "購入を復元"}
+            </SecondaryButtonText>
         </SecondaryButton>
     </ScreenLayout>
 );
+
+const getPurchaseStateMessage = (state: SubscriptionPurchaseState) => {
+    switch (state) {
+        case "success":
+            return "購入が完了しました。";
+        case "cancelled":
+            return "購入をキャンセルしました。";
+        case "pending":
+            return "購入が保留中です。";
+        case "restored":
+            return "購入を復元しました。";
+        case "noPurchase":
+            return "復元できる購入が見つかりませんでした。";
+        default:
+            return "";
+    }
+};
 
 const TopRow = styled.View`
     flex-direction: row;
@@ -143,10 +193,48 @@ const PricePlaceholder = styled.Text`
     font-weight: 700;
 `;
 
-const PrimaryButton = styled.TouchableOpacity`
+const PriceRow = styled.View`
+    width: 100%;
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+`;
+
+const ProductPrice = styled.Text`
+    color: #111111;
+    font-size: 26px;
+    line-height: 32px;
+    font-weight: 800;
+`;
+
+const ProductBillingCycle = styled.Text`
+    color: #8a8a8e;
+    font-size: 13px;
+    line-height: 18px;
+    font-weight: 400;
+`;
+
+const ErrorText = styled.Text`
+    color: #c03221;
+    font-size: 13px;
+    line-height: 19px;
+    font-weight: 700;
+    margin-bottom: 12px;
+`;
+
+const StatusText = styled.Text`
+    min-height: 20px;
+    color: #555555;
+    font-size: 13px;
+    line-height: 19px;
+    font-weight: 700;
+    margin-bottom: 10px;
+`;
+
+const PrimaryButton = styled.TouchableOpacity<{ $disabled?: boolean }>`
     height: 54px;
     border-radius: 27px;
-    background-color: #1f1f1f;
+    background-color: ${({ $disabled }) => ($disabled ? "#8d8d8d" : "#1f1f1f")};
     align-items: center;
     justify-content: center;
     margin-bottom: 12px;
@@ -159,12 +247,12 @@ const PrimaryButtonText = styled.Text`
     font-weight: 800;
 `;
 
-const SecondaryButton = styled.TouchableOpacity`
+const SecondaryButton = styled.TouchableOpacity<{ $disabled?: boolean }>`
     height: 54px;
     border-radius: 27px;
     border-width: 1px;
     border-color: #cfcfcf;
-    background-color: #ffffff;
+    background-color: ${({ $disabled }) => ($disabled ? "#f2f2f2" : "#ffffff")};
     align-items: center;
     justify-content: center;
 `;

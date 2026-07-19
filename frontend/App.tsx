@@ -29,6 +29,7 @@ import { SearchPage } from "./src/pages/SearchPage";
 import { SuguProPage } from "./src/pages/SuguProPage";
 import { BootSplashPage } from "./src/pages/BootSplashPage";
 import { OnboardingPage } from "./src/pages/OnboardingPage";
+import { useSubscription } from "./src/subscription/useSubscription";
 import type { SearchResult, WordDetailItem, WordItem } from "./src/types";
 import {
     clearSuguWidgetWords,
@@ -196,6 +197,7 @@ const generateNonce = (byteLength = 32) =>
         .join("");
 
 export default function App() {
+    const subscription = useSubscription();
     const bootStartedAtRef = useRef(Date.now());
     const handledInitialUrlRef = useRef<string | null>(null);
     const [screen, setScreen] = useState<Screen>("signin");
@@ -645,10 +647,6 @@ export default function App() {
     const handleBackFromPro = () => {
         setScreen(proReturnScreen);
     };
-
-    const handlePurchase = () => {};
-
-    const handleRestore = () => {};
 
     const handleDictionarySearch = async () => {
         if (!token && !guestId) {
@@ -1175,8 +1173,14 @@ export default function App() {
         return (
             <SuguProPage
                 onBack={handleBackFromPro}
-                onPurchase={handlePurchase}
-                onRestore={handleRestore}
+                onPurchase={subscription.purchase}
+                onRestore={subscription.restore}
+                productPrice={subscription.productPrice}
+                isLoadingProduct={subscription.isLoadingProduct}
+                isPurchasing={subscription.isPurchasing}
+                isRestoring={subscription.isRestoring}
+                errorMessage={subscription.error}
+                purchaseState={subscription.purchaseState}
             />
         );
     }

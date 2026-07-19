@@ -44,7 +44,8 @@
         {
           "userTrackingPermission": "許可することで、より関連性の高い広告を表示できるようになります。"
         }
-      ]
+      ],
+      "expo-iap"
     ],
     "extra": {
       "eas": {
