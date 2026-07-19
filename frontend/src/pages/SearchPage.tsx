@@ -750,19 +750,19 @@ const SearchBonusErrorText = styled.Text`
 
 const SearchBonusActions = styled.View`
     flex-direction: row;
-    justify-content: flex-end;
+    justify-content: space-between;
     margin-top: 20px;
 `;
 
 const SearchBonusSecondaryButton = styled.TouchableOpacity`
-    min-width: 108px;
+    flex: 1;
     height: 44px;
     border-radius: 14px;
     border-width: 1px;
     border-color: #cfcfcf;
     align-items: center;
     justify-content: center;
-    margin-right: 10px;
+    margin-right: 6px;
     padding: 0 16px;
 `;
 
@@ -773,12 +773,13 @@ const SearchBonusSecondaryText = styled.Text`
 `;
 
 const SearchBonusPrimaryButton = styled.TouchableOpacity`
-    min-width: 132px;
+    flex: 1;
     height: 44px;
     border-radius: 14px;
     background-color: #1f1f1f;
     align-items: center;
     justify-content: center;
+    margin-left: 6px;
     padding: 0 16px;
 `;
 
@@ -815,16 +816,17 @@ const SearchBonusProText = styled.Text`
 
 const SearchBonusProButton = styled.TouchableOpacity`
     height: 44px;
-    border-radius: 22px;
+    border-radius: 14px;
     background-color: #1f1f1f;
     align-items: center;
     justify-content: center;
     margin-top: 14px;
+    padding: 0 16px;
 `;
 
 const SearchBonusProButtonText = styled.Text`
     color: #ffffff;
-    font-size: 14px;
+    font-size: 15px;
     line-height: 20px;
-    font-weight: 800;
+    font-weight: 700;
 `;
