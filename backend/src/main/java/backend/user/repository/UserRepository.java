@@ -30,9 +30,29 @@ public class UserRepository {
                 rs.getString("provider_user_id"),
                 rs.getObject("app_account_token", UUID.class));
 
+    return jdbcClient.sql(sql).param("userId", userId).query(rowMapper).optional().orElse(null);
+  }
+
+  public User getUserByAppAccountToken(UUID appAccountToken) {
+    String sql =
+        """
+            SELECT id, email, auth_provider, provider_user_id, app_account_token
+            FROM users
+            WHERE app_account_token = :appAccountToken
+        """;
+
+    RowMapper<User> rowMapper =
+        (rs, rowNum) ->
+            User.fromDb(
+                rs.getLong("id"),
+                rs.getString("email"),
+                rs.getString("auth_provider"),
+                rs.getString("provider_user_id"),
+                rs.getObject("app_account_token", UUID.class));
+
     return jdbcClient
         .sql(sql)
-        .param("userId", userId)
+        .param("appAccountToken", appAccountToken)
         .query(rowMapper)
         .optional()
         .orElse(null);
@@ -60,11 +80,7 @@ public class UserRepository {
             WHERE id = :userId
         """;
 
-    jdbcClient
-        .sql(sql)
-        .param("userId", userId)
-        .param("appAccountToken", appAccountToken)
-        .update();
+    jdbcClient.sql(sql).param("userId", userId).param("appAccountToken", appAccountToken).update();
   }
 
   public User getUserByProviderUserId(String providerUserId) {
@@ -88,7 +104,6 @@ public class UserRepository {
         .query(rowMapper)
         .optional()
         .orElse(null);
-
   }
 
   public long createUserWithAppleId(User newUser) {

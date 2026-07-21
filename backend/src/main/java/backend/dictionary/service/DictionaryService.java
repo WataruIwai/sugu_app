@@ -7,6 +7,7 @@ import backend.dictionary.repository.DictionaryRepository;
 import backend.dictionary.util.SearchContext;
 import backend.exception.BadRequestException;
 import backend.exception.TooManyRequestsException;
+import backend.subscription.repository.SubscriptionRepository;
 import backend.external.OpenAiClient;
 import backend.external.dto.OpenAiResponse;
 import backend.usage.domain.GuestUsageCount;
@@ -23,8 +24,10 @@ public class DictionaryService {
   private final OpenAiClient openAiClient;
   private final UsageRepository usageRepository;
   private final DictionaryWriteService dictionaryWriteService;
+  private final SubscriptionRepository subscriptionRepository;
 
   private enum ConsumedUsageType {
+    NONE,
     BASE,
     BONUS
   }
@@ -33,11 +36,13 @@ public class DictionaryService {
       DictionaryRepository dictionaryRepository,
       OpenAiClient openAiClient,
       UsageRepository usageRepository,
-      DictionaryWriteService dictionaryWriteService) {
+      DictionaryWriteService dictionaryWriteService,
+      SubscriptionRepository subscriptionRepository) {
     this.dictionaryRepository = dictionaryRepository;
     this.openAiClient = openAiClient;
     this.usageRepository = usageRepository;
     this.dictionaryWriteService = dictionaryWriteService;
+    this.subscriptionRepository = subscriptionRepository;
   }
 
   public WordResponse getWordData(String searchWord, SearchContext searchContext) {
@@ -102,6 +107,10 @@ public class DictionaryService {
   }
 
   private ConsumedUsageType consumeUsage(SearchContext searchContext, UsageCount usage) {
+    if (searchContext.getUserId() != null && subscriptionRepository.isActive(searchContext.getUserId())) {
+      return ConsumedUsageType.NONE;
+    }
+
     if (searchContext.getGuestId() != null) {
       GuestUsageCount guestUsage = (GuestUsageCount) usage;
       if (usageRepository.consumeGuestUsage(guestUsage)) {
@@ -127,6 +136,10 @@ public class DictionaryService {
 
   private void rollbackUsage(
       SearchContext searchContext, UsageCount usage, ConsumedUsageType consumedUsageType) {
+    if (consumedUsageType == ConsumedUsageType.NONE) {
+      return;
+    }
+
     if (searchContext.getGuestId() != null) {
       GuestUsageCount guestUsage = (GuestUsageCount) usage;
       if (consumedUsageType == ConsumedUsageType.BASE) {

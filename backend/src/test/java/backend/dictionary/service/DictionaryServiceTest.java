@@ -1,175 +1,156 @@
 package backend.dictionary.service;
 
-import static org.mockito.Mockito.when;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.anyList;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.when;
 
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
-
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import backend.external.OpenAiClient;
 import backend.dictionary.dto.WordEntry;
 import backend.dictionary.dto.WordResponse;
 import backend.dictionary.repository.DictionaryRepository;
 import backend.dictionary.util.SearchContext;
 import backend.exception.TooManyRequestsException;
+import backend.external.OpenAiClient;
 import backend.external.dto.OpenAiResponse;
 import backend.usage.domain.GuestUsageCount;
 import backend.usage.repository.UsageRepository;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class DictionaryServiceTest {
-    @Mock DictionaryRepository dictionaryRepository;
-    @Mock OpenAiClient openAiClient;
-    @Mock UsageRepository usageRepository;
-    @Mock DictionaryWriteService dictionaryWriteService;
+  @Mock DictionaryRepository dictionaryRepository;
+  @Mock OpenAiClient openAiClient;
+  @Mock UsageRepository usageRepository;
+  @Mock DictionaryWriteService dictionaryWriteService;
 
-    @InjectMocks DictionaryService dictionaryService;
+  @InjectMocks DictionaryService dictionaryService;
 
-    private GuestUsageCount guestUsage(String guestId) {
-        return new GuestUsageCount(
-            1L,
-            guestId,
-            LocalDate.now(),
-            3,
-            0,
-            1,
-            0
-        );
-    }
+  private GuestUsageCount guestUsage(String guestId) {
+    return new GuestUsageCount(1L, guestId, LocalDate.now(), 3, 0, 1, 0);
+  }
 
-    private OpenAiResponse successOpenAiResponse(String word) {
-        OpenAiResponse response = new OpenAiResponse();
-        response.setInputWord(word);
-        response.setResolvedWord(word);
-        response.setCandidates(List.of());
-        response.setEntries(
-            List.of(new WordEntry("a fruit", "りんご", "I ate an apple."))
-        );
-        return response;
-    }
+  private OpenAiResponse successOpenAiResponse(String word) {
+    OpenAiResponse response = new OpenAiResponse();
+    response.setInputWord(word);
+    response.setResolvedWord(word);
+    response.setCandidates(List.of());
+    response.setEntries(List.of(new WordEntry("a fruit", "りんご", "I ate an apple.")));
+    return response;
+  }
 
-    @Test
-    void returnSpellingSuspectedAndRollbackWhenResolvedWordIsBlank() {
-        // Arrange
-        String guestId = "guest-test";
-        SearchContext searchContext = SearchContext.forGuest(guestId);
+  @Test
+  void returnSpellingSuspectedAndRollbackWhenResolvedWordIsBlank() {
+    // Arrange
+    String guestId = "guest-test";
+    SearchContext searchContext = SearchContext.forGuest(guestId);
 
-        GuestUsageCount usage = guestUsage(guestId);
+    GuestUsageCount usage = guestUsage(guestId);
 
-        OpenAiResponse openAiResponse = new OpenAiResponse();
-        openAiResponse.setInputWord("www");
-        openAiResponse.setResolvedWord("");
-        openAiResponse.setCandidates(List.of("web", "ww", "www."));
-        openAiResponse.setEntries(List.of());
+    OpenAiResponse openAiResponse = new OpenAiResponse();
+    openAiResponse.setInputWord("www");
+    openAiResponse.setResolvedWord("");
+    openAiResponse.setCandidates(List.of("web", "ww", "www."));
+    openAiResponse.setEntries(List.of());
 
-        when(usageRepository.getGuestUsage(guestId)).thenReturn(Optional.of(usage));
-        when(usageRepository.consumeGuestUsage(usage)).thenReturn(true);
-        when(dictionaryRepository.queryWordData("www")).thenReturn(Optional.empty());
-        when(openAiClient.fetchWordData("www")).thenReturn(openAiResponse);
+    when(usageRepository.getGuestUsage(guestId)).thenReturn(Optional.of(usage));
+    when(usageRepository.consumeGuestUsage(usage)).thenReturn(true);
+    when(dictionaryRepository.queryWordData("www")).thenReturn(Optional.empty());
+    when(openAiClient.fetchWordData("www")).thenReturn(openAiResponse);
 
-        //Act
-        WordResponse response = dictionaryService.getWordData("www", searchContext);
+    // Act
+    WordResponse response = dictionaryService.getWordData("www", searchContext);
 
-        //Assert
-        assertEquals("SPELLING_SUSPECTED", response.getStatus());
-        assertEquals("www", response.getWord());
-        assertEquals(List.of("web", "ww", "www."), response.getCandidates());
+    // Assert
+    assertEquals("SPELLING_SUSPECTED", response.getStatus());
+    assertEquals("www", response.getWord());
+    assertEquals(List.of("web", "ww", "www."), response.getCandidates());
 
-        verify(usageRepository).rollbackGuestUsage(usage);
-        verify(dictionaryWriteService, never()).createWordDataWithEntries(anyString(), anyList());
-    }
+    verify(usageRepository).rollbackGuestUsage(usage);
+    verify(dictionaryWriteService, never()).createWordDataWithEntries(anyString(), anyList());
+  }
 
-    @Test
-    void reachBaseLimitThrowException() {
-        String guestId = "guest-test";
-        SearchContext searchContext = SearchContext.forGuest(guestId);
+  @Test
+  void reachBaseLimitThrowException() {
+    String guestId = "guest-test";
+    SearchContext searchContext = SearchContext.forGuest(guestId);
 
-        GuestUsageCount usage = new GuestUsageCount(
-            1L,
-            guestId,
-            LocalDate.now(),
-            3,
-            0,
-            3,
-            0
-        );;
+    GuestUsageCount usage = new GuestUsageCount(1L, guestId, LocalDate.now(), 3, 0, 3, 0);
+    ;
 
-        when(usageRepository.getGuestUsage(guestId)).thenReturn(Optional.of(usage));
-        when(usageRepository.consumeGuestUsage(usage)).thenReturn(false);
-        when(usageRepository.consumeGuestBonusUsage(usage)).thenReturn(false);
+    when(usageRepository.getGuestUsage(guestId)).thenReturn(Optional.of(usage));
+    when(usageRepository.consumeGuestUsage(usage)).thenReturn(false);
+    when(usageRepository.consumeGuestBonusUsage(usage)).thenReturn(false);
 
-        // Act & Assert
-        assertThrows(
-            TooManyRequestsException.class,
-            () -> dictionaryService.getWordData("apple", searchContext)
-        );
+    // Act & Assert
+    assertThrows(
+        TooManyRequestsException.class,
+        () -> dictionaryService.getWordData("apple", searchContext));
 
-        verify(dictionaryRepository, never()).queryWordData(anyString());
-        verify(openAiClient, never()).fetchWordData(anyString());
-        verify(dictionaryWriteService, never()).createWordDataWithEntries(anyString(), anyList());
-    }
+    verify(dictionaryRepository, never()).queryWordData(anyString());
+    verify(openAiClient, never()).fetchWordData(anyString());
+    verify(dictionaryWriteService, never()).createWordDataWithEntries(anyString(), anyList());
+  }
 
-    @Test
-    void searchWhenBaseLimitReachedButBonusAvailable() {
-        // Arrange
-        String guestId = "guest-test";
-        SearchContext searchContext = SearchContext.forGuest(guestId);
-        GuestUsageCount usage = guestUsage(guestId);
-        OpenAiResponse openAiResponse = successOpenAiResponse("apple");
+  @Test
+  void searchWhenBaseLimitReachedButBonusAvailable() {
+    // Arrange
+    String guestId = "guest-test";
+    SearchContext searchContext = SearchContext.forGuest(guestId);
+    GuestUsageCount usage = guestUsage(guestId);
+    OpenAiResponse openAiResponse = successOpenAiResponse("apple");
 
-        when(usageRepository.getGuestUsage(guestId)).thenReturn(Optional.of(usage));
-        when(usageRepository.consumeGuestUsage(usage)).thenReturn(false);
-        when(usageRepository.consumeGuestBonusUsage(usage)).thenReturn(true);
-        when(dictionaryRepository.queryWordData("apple")).thenReturn(Optional.empty());
-        when(openAiClient.fetchWordData("apple")).thenReturn(openAiResponse);
+    when(usageRepository.getGuestUsage(guestId)).thenReturn(Optional.of(usage));
+    when(usageRepository.consumeGuestUsage(usage)).thenReturn(false);
+    when(usageRepository.consumeGuestBonusUsage(usage)).thenReturn(true);
+    when(dictionaryRepository.queryWordData("apple")).thenReturn(Optional.empty());
+    when(openAiClient.fetchWordData("apple")).thenReturn(openAiResponse);
 
-        // Act
-        WordResponse response = dictionaryService.getWordData("apple", searchContext);
+    // Act
+    WordResponse response = dictionaryService.getWordData("apple", searchContext);
 
-        // Assert
-        assertEquals("SUCCESS", response.getStatus());
-        assertEquals("apple", response.getWord());
+    // Assert
+    assertEquals("SUCCESS", response.getStatus());
+    assertEquals("apple", response.getWord());
 
-        verify(usageRepository).consumeGuestUsage(usage);
-        verify(usageRepository).consumeGuestBonusUsage(usage);
-        verify(openAiClient).fetchWordData("apple");
-        verify(dictionaryWriteService).createWordDataWithEntries("apple", openAiResponse.getEntries());
-    }
+    verify(usageRepository).consumeGuestUsage(usage);
+    verify(usageRepository).consumeGuestBonusUsage(usage);
+    verify(openAiClient).fetchWordData("apple");
+    verify(dictionaryWriteService).createWordDataWithEntries("apple", openAiResponse.getEntries());
+  }
 
-    @Test
-    void searchWhenBaseUsageAvailable() {
-        // Arrange
-        String guestId = "guest-test";
-        SearchContext searchContext = SearchContext.forGuest(guestId);
-        GuestUsageCount usage = guestUsage(guestId);
-        OpenAiResponse openAiResponse = successOpenAiResponse("apple");
+  @Test
+  void searchWhenBaseUsageAvailable() {
+    // Arrange
+    String guestId = "guest-test";
+    SearchContext searchContext = SearchContext.forGuest(guestId);
+    GuestUsageCount usage = guestUsage(guestId);
+    OpenAiResponse openAiResponse = successOpenAiResponse("apple");
 
-        when(usageRepository.getGuestUsage(guestId)).thenReturn(Optional.of(usage));
-        when(usageRepository.consumeGuestUsage(usage)).thenReturn(true);
-        when(dictionaryRepository.queryWordData("apple")).thenReturn(Optional.empty());
-        when(openAiClient.fetchWordData("apple")).thenReturn(openAiResponse);
+    when(usageRepository.getGuestUsage(guestId)).thenReturn(Optional.of(usage));
+    when(usageRepository.consumeGuestUsage(usage)).thenReturn(true);
+    when(dictionaryRepository.queryWordData("apple")).thenReturn(Optional.empty());
+    when(openAiClient.fetchWordData("apple")).thenReturn(openAiResponse);
 
-        // Act
-        WordResponse response = dictionaryService.getWordData("apple", searchContext);
+    // Act
+    WordResponse response = dictionaryService.getWordData("apple", searchContext);
 
-        // Assert
-        assertEquals("SUCCESS", response.getStatus());
-        assertEquals("apple", response.getWord());
+    // Assert
+    assertEquals("SUCCESS", response.getStatus());
+    assertEquals("apple", response.getWord());
 
-        verify(usageRepository).consumeGuestUsage(usage);
-        verify(usageRepository, never()).consumeGuestBonusUsage(usage);
-        verify(openAiClient).fetchWordData("apple");
-        verify(dictionaryWriteService).createWordDataWithEntries("apple", openAiResponse.getEntries());
-    }
+    verify(usageRepository).consumeGuestUsage(usage);
+    verify(usageRepository, never()).consumeGuestBonusUsage(usage);
+    verify(openAiClient).fetchWordData("apple");
+    verify(dictionaryWriteService).createWordDataWithEntries("apple", openAiResponse.getEntries());
+  }
 }

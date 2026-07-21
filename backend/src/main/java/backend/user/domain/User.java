@@ -49,7 +49,8 @@ public class User {
       String termsVersion,
       LocalDateTime agreedTermsAt,
       UUID appAccountToken) {
-    return new User(email, authProvider, providerUserId, termsVersion, agreedTermsAt, appAccountToken);
+    return new User(
+        email, authProvider, providerUserId, termsVersion, agreedTermsAt, appAccountToken);
   }
 
   public long getId() {

@@ -22,6 +22,15 @@ usage:
 apple:
     signin:
         audience: ${EXPO_PUBLIC_IOS_BUNDLE_ID}
+    store:
+        private-key-path: ${APPLE_STORE_PRIVATE_KEY}
+        key-id: ${APPLE_KEY_ID}
+        issuer-id: ${APPLE_ISSURE_ID}
+        bundle-id: ${APPLE_BUNDLE_ID}
+        environment: ${APPLE_STORE_ENVIRONMENT:SANDBOX}
+        subscription-product-id: ${APPLE_SUBSCRIPTION_PRODUCT_ID}
+        app-apple-id: ${APPLE_APP_APPLE_ID:}
+        root-certificate-paths: ${APPLE_ROOT_CERTIFICATE_PATHS:}
 
 openai:
     api-key: ${OPENAI_API_KEY}

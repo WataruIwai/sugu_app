@@ -1,11 +1,19 @@
 package backend.subscription.controller;
 
 import backend.dictionary.util.SearchContext;
+import backend.subscription.dto.AppleNotificationRequest;
 import backend.subscription.service.SubscriptionService;
+import com.apple.itunes.storekit.client.APIException;
+import com.apple.itunes.storekit.verification.VerificationException;
+import java.io.IOException;
 import java.util.UUID;
+
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -25,5 +33,24 @@ public class SubscriptionController {
     return new AppAccountTokenResponse(appAccountToken);
   }
 
+  @PostMapping("/verify")
+  public SubscriptionStatusResponse verify(
+      @AuthenticationPrincipal SearchContext searchContext, @RequestParam String transactionId)
+      throws APIException, IOException, VerificationException {
+    long userId = searchContext.getUserId();
+    boolean isActive = subscriptionService.verifySubscriptionPurchase(userId, transactionId);
+    if (!isActive) throw new IllegalStateException("");
+    return new SubscriptionStatusResponse("ACTIVE");
+  }
+
+  @PostMapping("/notifications/apple")
+  public ResponseEntity<Void> receiveAppleNotification(@RequestBody AppleNotificationRequest request)
+      throws VerificationException {
+    subscriptionService.handleAppleNotification(request.signedPayload());
+    return ResponseEntity.ok().build();
+  }
+
   public record AppAccountTokenResponse(UUID appAccountToken) {}
+
+  public record SubscriptionStatusResponse(String status) {}
 }
