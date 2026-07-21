@@ -7,12 +7,15 @@ import {
     useIAP,
 } from "expo-iap";
 
+import { getAuthToken } from "../auth/tokenStorage";
+import { API_BASE_URL } from "../config/api";
 import { SUGU_PRO_MONTHLY_PRODUCT_ID } from "./subscriptionConstants";
 import {
     getErrorMessage,
     isPendingPurchase,
     isUserCancelledPurchaseError,
     logPurchaseDetails,
+    normalizePurchaseLog,
     type SuguSubscriptionProduct,
     type SubscriptionPurchaseState,
     toSuguSubscriptionProduct,
@@ -24,6 +27,14 @@ const PURCHASE_ERROR_MESSAGE =
     "購入処理を開始できませんでした。時間をおいて再度お試しください。";
 const RESTORE_ERROR_MESSAGE =
     "購入の復元に失敗しました。時間をおいて再度お試しください。";
+
+type AppAccountTokenResponse = {
+    appAccountToken?: string;
+};
+
+type SubscriptionStatusResponse = {
+    status?: string;
+};
 
 const matchesSuguProProduct = (purchase: unknown) => {
     if (typeof purchase !== "object" || purchase === null) {
@@ -37,6 +48,87 @@ const matchesSuguProProduct = (purchase: unknown) => {
     return productId === SUGU_PRO_MONTHLY_PRODUCT_ID;
 };
 
+const fetchAppAccountToken = async () => {
+    const token = await getAuthToken();
+
+    if (!token) {
+        throw new Error("ログイン情報を確認できませんでした。再度ログインしてください。");
+    }
+
+    const response = await fetch(
+        `${API_BASE_URL}/api/v1/subscription/appAccountToken`,
+        {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        },
+    );
+
+    if (!response.ok) {
+        throw new Error("購入に必要なユーザー情報を取得できませんでした。");
+    }
+
+    const data = (await response.json()) as AppAccountTokenResponse;
+
+    if (!data.appAccountToken) {
+        throw new Error("購入に必要なユーザー情報を取得できませんでした。");
+    }
+
+    return data.appAccountToken;
+};
+
+const verifySubscriptionPurchase = async (purchase: unknown) => {
+    const token = await getAuthToken();
+
+    if (!token) {
+        throw new Error("ログイン情報を確認できませんでした。再度ログインしてください。");
+    }
+
+    const transactionId = normalizePurchaseLog(purchase).transactionId;
+
+    if (!transactionId) {
+        throw new Error("購入トランザクションIDを取得できませんでした。");
+    }
+
+    const response = await fetch(
+        `${API_BASE_URL}/api/v1/subscription/verify?transactionId=${encodeURIComponent(
+            transactionId,
+        )}`,
+        {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        },
+    );
+
+    if (!response.ok) {
+        throw new Error("購入情報の確認に失敗しました。");
+    }
+};
+
+const fetchSubscriptionStatus = async () => {
+    const token = await getAuthToken();
+
+    if (!token) {
+        return false;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/v1/subscription/status`, {
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+    });
+
+    if (!response.ok) {
+        throw new Error("サブスクリプション状態の確認に失敗しました。");
+    }
+
+    const data = (await response.json()) as SubscriptionStatusResponse;
+    return data.status === "ACTIVE";
+};
+
 export const useSubscription = () => {
     const productLoadRequestedRef = useRef(false);
     const [product, setProduct] = useState<SuguSubscriptionProduct | null>(
@@ -48,6 +140,7 @@ export const useSubscription = () => {
     const [error, setError] = useState<string | null>(null);
     const [purchaseState, setPurchaseState] =
         useState<SubscriptionPurchaseState>("idle");
+    const [isActive, setIsActive] = useState(false);
 
     const {
         connected,
@@ -64,13 +157,27 @@ export const useSubscription = () => {
             );
 
             try {
+                await verifySubscriptionPurchase(purchase);
+                setIsActive(true);
+                console.log("Sugu Pro purchase verified");
+
                 await finishTransaction({
                     purchase,
                     isConsumable: false,
                 });
                 console.log("Sugu Pro transaction finished");
-            } catch (finishError) {
-                console.log("Sugu Pro finishTransaction error:", finishError);
+            } catch (purchaseVerificationError) {
+                console.log(
+                    "Sugu Pro purchase verification error:",
+                    purchaseVerificationError,
+                );
+                setPurchaseState("error");
+                setError(
+                    getErrorMessage(
+                        purchaseVerificationError,
+                        "購入情報の確認に失敗しました。",
+                    ),
+                );
             } finally {
                 setIsPurchasing(false);
             }
@@ -166,6 +273,15 @@ export const useSubscription = () => {
         void loadProduct();
     }, [loadProduct]);
 
+    const refreshStatus = useCallback(async () => {
+        try {
+            setIsActive(await fetchSubscriptionStatus());
+        } catch (statusError) {
+            console.log("Sugu Pro status refresh error:", statusError);
+            setIsActive(false);
+        }
+    }, []);
+
     const purchase = useCallback(async () => {
         if (isPurchasing || isRestoring) {
             return;
@@ -191,10 +307,13 @@ export const useSubscription = () => {
         setError(null);
 
         try {
+            const appAccountToken = await fetchAppAccountToken();
+
             await requestPurchase({
                 request: {
                     apple: {
                         sku: SUGU_PRO_MONTHLY_PRODUCT_ID,
+                        appAccountToken,
                     },
                     google: {
                         skus: [SUGU_PRO_MONTHLY_PRODUCT_ID],
@@ -252,15 +371,18 @@ export const useSubscription = () => {
             if (restoredPurchases.length === 0) {
                 console.log("Sugu Pro restore: no purchases found");
                 setPurchaseState("noPurchase");
+                setIsActive(false);
                 return;
             }
 
-            restoredPurchases.forEach((restoredPurchase) => {
+            for (const restoredPurchase of restoredPurchases) {
                 logPurchaseDetails(
                     "Sugu Pro restored purchase:",
                     restoredPurchase,
                 );
-            });
+                await verifySubscriptionPurchase(restoredPurchase);
+            }
+            setIsActive(true);
             setPurchaseState("restored");
         } catch (restoreError) {
             console.log("Sugu Pro restore error:", restoreError);
@@ -286,7 +408,9 @@ export const useSubscription = () => {
         isRestoring,
         error,
         purchaseState,
+        isActive,
         loadProduct,
+        refreshStatus,
         purchase,
         restore,
     };

@@ -14,6 +14,9 @@ type ScreenLayoutProps = PropsWithChildren<{
     contentFillsViewport?: boolean;
     lockScrollWhenContentFits?: boolean;
     scrollable?: boolean;
+    horizontalPadding?: number;
+    contentTopMargin?: number;
+    fixedTopOffset?: number;
 }>;
 
 export const ScreenLayout = ({
@@ -25,6 +28,9 @@ export const ScreenLayout = ({
     contentFillsViewport = true,
     lockScrollWhenContentFits = false,
     scrollable = true,
+    horizontalPadding = 34,
+    contentTopMargin = 56,
+    fixedTopOffset = 40,
 }: ScreenLayoutProps) => {
     const insets = useSafeAreaInsets();
     const [viewportHeight, setViewportHeight] = useState(0);
@@ -41,10 +47,21 @@ export const ScreenLayout = ({
     if (!scrollable) {
         return (
             <BaseSafeArea>
-                <ContentContainer $fillViewport={contentFillsViewport}>
+                <ContentContainer
+                    $fillViewport={contentFillsViewport}
+                    $horizontalPadding={horizontalPadding}
+                    $topMargin={contentTopMargin}
+                >
                     {children}
                 </ContentContainer>
-                {fixedTop ? <FixedTopWrap>{fixedTop}</FixedTopWrap> : null}
+                {fixedTop ? (
+                    <FixedTopWrap
+                        $horizontalPadding={horizontalPadding}
+                        $topOffset={fixedTopOffset}
+                    >
+                        {fixedTop}
+                    </FixedTopWrap>
+                ) : null}
                 {fixedOverlay ? (
                     <FixedOverlayWrap
                         style={{
@@ -79,11 +96,22 @@ export const ScreenLayout = ({
                 onLayout={handleLayout}
                 scrollEnabled={canScroll}
             >
-                <ContentContainer $fillViewport={contentFillsViewport}>
+                <ContentContainer
+                    $fillViewport={contentFillsViewport}
+                    $horizontalPadding={horizontalPadding}
+                    $topMargin={contentTopMargin}
+                >
                     {children}
                 </ContentContainer>
             </ScrollWrapper>
-            {fixedTop ? <FixedTopWrap>{fixedTop}</FixedTopWrap> : null}
+            {fixedTop ? (
+                <FixedTopWrap
+                    $horizontalPadding={horizontalPadding}
+                    $topOffset={fixedTopOffset}
+                >
+                    {fixedTop}
+                </FixedTopWrap>
+            ) : null}
             {fixedOverlay ? (
                 <FixedOverlayWrap
                     style={{
@@ -121,11 +149,15 @@ const ScrollWrapper = styled(ScrollView).attrs({
     flex: 1;
 `;
 
-const ContentContainer = styled.View<{ $fillViewport: boolean }>`
+const ContentContainer = styled.View<{
+    $fillViewport: boolean;
+    $horizontalPadding: number;
+    $topMargin: number;
+}>`
     ${(props: { $fillViewport: boolean }) =>
         props.$fillViewport ? "flex: 1;" : ""}
-    padding: 0px 34px;
-    margin-top: 56px;
+    padding: 0px ${(props) => props.$horizontalPadding}px;
+    margin-top: ${(props) => props.$topMargin}px;
 `;
 
 const CenteredContainer = styled.View`
@@ -141,11 +173,14 @@ const FixedBottomWrap = styled.View`
     bottom: 34px;
 `;
 
-const FixedTopWrap = styled.View`
+const FixedTopWrap = styled.View<{
+    $horizontalPadding: number;
+    $topOffset: number;
+}>`
     position: absolute;
-    top: 40px;
-    left: 34px;
-    right: 34px;
+    top: ${(props) => props.$topOffset}px;
+    left: ${(props) => props.$horizontalPadding}px;
+    right: ${(props) => props.$horizontalPadding}px;
     z-index: 30;
 `;
 

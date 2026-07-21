@@ -18,6 +18,7 @@ type VocabularyListPageProps = {
     onOpenSupport: () => void;
     onOpenPro: () => void;
     onDeleteAccount: () => void;
+    isPro: boolean;
     menuOpen: boolean;
     onToggleMenu: () => void;
     onLogout: () => void;
@@ -34,6 +35,7 @@ export const VocabularyListPage = ({
     onOpenSupport,
     onOpenPro,
     onDeleteAccount,
+    isPro,
     menuOpen,
     onToggleMenu,
     onLogout,
@@ -88,9 +90,12 @@ export const VocabularyListPage = ({
     return (
         <ScreenLayout
             contentFillsViewport
+            horizontalPadding={20}
+            fixedTopOffset={0}
             scrollable={false}
             fixedTop={
-                <FixedMenuRow>
+                <FixedMenuRow $hasBadge={isPro}>
+                    {isPro ? <ProBadgeText>PRO</ProBadgeText> : null}
                     <MenuButton
                         activeOpacity={0.8}
                         onPress={onToggleMenu}
@@ -301,18 +306,29 @@ const WordListItem = React.memo(
     ),
 );
 
-const FixedMenuRow = styled.View`
+const FixedMenuRow = styled.View<{ $hasBadge: boolean }>`
     flex-direction: row;
-    justify-content: flex-end;
+    justify-content: ${(props) =>
+        props.$hasBadge ? "space-between" : "flex-end"};
     align-items: center;
 `;
 
 const MenuButton = styled.TouchableOpacity`
-    width: 44px;
-    height: 44px;
+    width: 36px;
+    height: 36px;
     align-items: flex-end;
     justify-content: center;
-    transform: translateY(12px);
+`;
+
+const ProBadgeText = styled.Text`
+    color: #8a8a8e;
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 500;
+    border-width: 0.5px;
+    border-color: #8a8a8e;
+    border-radius: 6px;
+    padding: 3px 8px;
 `;
 
 const MenuIcon = styled.Text`

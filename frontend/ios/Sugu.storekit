@@ -115,7 +115,7 @@
               "locale" : "ja"
             }
           ],
-          "productID" : "com.sugu.ios.pro.monthly",
+          "productID" : "com.sugu.pro.monthly",
           "recurringSubscriptionPeriod" : "P1M",
           "referenceName" : "Sugu Pro Monthly",
           "subscriptionGroupID" : "C0A137A1",

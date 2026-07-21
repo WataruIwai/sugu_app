@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Linking, Platform } from "react-native";
+import { AppState, Linking, Platform } from "react-native";
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as Crypto from "expo-crypto";
 import {
@@ -30,6 +30,7 @@ import { SuguProPage } from "./src/pages/SuguProPage";
 import { BootSplashPage } from "./src/pages/BootSplashPage";
 import { OnboardingPage } from "./src/pages/OnboardingPage";
 import { useSubscription } from "./src/subscription/useSubscription";
+import { API_BASE_URL } from "./src/config/api";
 import type { SearchResult, WordDetailItem, WordItem } from "./src/types";
 import {
     clearSuguWidgetWords,
@@ -37,7 +38,6 @@ import {
     syncSuguWidgetWords,
 } from "./src/widget/suguWidget";
 
-const API_BASE_URL = "http://localhost:8082";
 const TERMS_URL =
     "https://www.notion.so/3559a7163b3880239ec3ed3cfed7bbff?source=copy_link";
 const PRIVACY_POLICY_URL =
@@ -645,6 +645,9 @@ export default function App() {
     };
 
     const handleBackFromPro = () => {
+        if (token) {
+            void subscription.refreshStatus();
+        }
         setScreen(proReturnScreen);
     };
 
@@ -1056,6 +1059,25 @@ export default function App() {
     }, [authenticated, screen]);
 
     useEffect(() => {
+        if (!token) {
+            return;
+        }
+
+        void subscription.refreshStatus();
+
+        const subscriptionStatusListener = AppState.addEventListener(
+            "change",
+            (state) => {
+                if (state === "active") {
+                    void subscription.refreshStatus();
+                }
+            },
+        );
+
+        return () => subscriptionStatusListener.remove();
+    }, [subscription.refreshStatus, token]);
+
+    useEffect(() => {
         if (bootstrapping || attCheckCompleted) {
             return;
         }
@@ -1120,6 +1142,7 @@ export default function App() {
                 onOpenSupport={handleOpenSupport}
                 onOpenPro={() => handleOpenPro("list")}
                 onDeleteAccount={handleDeleteAccount}
+                isPro={Boolean(token) && subscription.isActive}
                 menuOpen={listMenuOpen}
                 onToggleMenu={() => setListMenuOpen((current) => !current)}
                 onLogout={handleLogout}

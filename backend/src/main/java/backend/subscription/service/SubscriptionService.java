@@ -58,6 +58,10 @@ public class SubscriptionService {
     return subscriptionRepository.isActive(user.getId());
   }
 
+  public boolean isSubscriptionActive(long userId) {
+    return subscriptionRepository.isActive(userId);
+  }
+
   public void handleAppleNotification(String signedPayload) throws VerificationException {
     ResponseBodyV2DecodedPayload decodedPayload =
         signedDataVerifier.verifyAndDecodeNotification(signedPayload);
