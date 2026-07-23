@@ -7,8 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		03D872AD0B4A463C8BC7ED26 /* SuguSearchShare.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = A4D3D4A72998485FA6A14C70 /* SuguSearchShare.appex */; };
-		09BDBC89C758498EA3A9A271 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1CAD56AA88A47D8B80F584A /* ShareViewController.swift */; };
 		0B908E748F5247879B6AF1B7 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = CA4EA7A7D53C0005346AF4B0 /* PrivacyInfo.xcprivacy */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
@@ -41,7 +39,6 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				03D872AD0B4A463C8BC7ED26 /* SuguSearchShare.appex in Embed App Extensions */,
 				B1B55E1684AB764FC5A6DE47 /* SuguWidget.appex in Embed App Extensions */,
 			);
 			name = "Embed App Extensions";
@@ -53,7 +50,6 @@
 		0397494E5A1A44CF5D91965E /* SuguWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SuguWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		03AEF2F044C8764BD2A720F9 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		04D82EE94D33FDEE088F8593 /* SuguWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SuguWidget.swift; sourceTree = "<group>"; };
-		0A41E7BFCBC44BF2954FBA6C /* Info.plist */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* Sugu.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Sugu.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = frontend/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = frontend/Info.plist; sourceTree = "<group>"; };
@@ -64,8 +60,6 @@
 		6562020563DA31A465555BAF /* libPods-frontend.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-frontend.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		812338C76D830864D60F70F3 /* SuguWidget.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = SuguWidget.entitlements; sourceTree = "<group>"; };
 		9E9A2000B58B3C8E05D804C9 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS14.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
-		A1CAD56AA88A47D8B80F584A /* ShareViewController.swift */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
-		A4D3D4A72998485FA6A14C70 /* SuguSearchShare.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; fileEncoding = 9; includeInIndex = 0; path = SuguSearchShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = frontend/SplashScreen.storyboard; sourceTree = "<group>"; };
 		B4A40291DEB6A4969E621CAC /* Pods-frontend.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-frontend.release.xcconfig"; path = "Target Support Files/Pods-frontend/Pods-frontend.release.xcconfig"; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
@@ -166,7 +160,6 @@
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
 				CF88DC5BB2B82D02D23D70DC /* Pods */,
 				211851C8DD597C898DECBBF1 /* ExpoModulesProviders */,
-				AE1718434C6A4AB38A2B6F7E /* SuguSearchShare */,
 				0B66C99A75F81797391940AF /* SuguWidget */,
 			);
 			indentWidth = 2;
@@ -178,19 +171,9 @@
 			isa = PBXGroup;
 			children = (
 				13B07F961A680F5B00A75B9A /* Sugu.app */,
-				A4D3D4A72998485FA6A14C70 /* SuguSearchShare.appex */,
 				0397494E5A1A44CF5D91965E /* SuguWidget.appex */,
 			);
 			name = Products;
-			sourceTree = "<group>";
-		};
-		AE1718434C6A4AB38A2B6F7E /* SuguSearchShare */ = {
-			isa = PBXGroup;
-			children = (
-				A1CAD56AA88A47D8B80F584A /* ShareViewController.swift */,
-				0A41E7BFCBC44BF2954FBA6C /* Info.plist */,
-			);
-			path = SuguSearchShare;
 			sourceTree = "<group>";
 		};
 		BB2F792B24A3F905000567C9 /* Supporting */ = {
@@ -264,21 +247,6 @@
 			productReference = 0397494E5A1A44CF5D91965E /* SuguWidget.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
-		B351B95E386640CAB774F952 /* SuguSearchShare */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 11B8B65F937948F6937D530A /* Build configuration list for PBXNativeTarget "SuguSearchShare" */;
-			buildPhases = (
-				0176AC780E3748428F85D8AF /* Sources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = SuguSearchShare;
-			productName = SuguSearchShare;
-			productReference = A4D3D4A72998485FA6A14C70 /* SuguSearchShare.appex */;
-			productType = "com.apple.product-type.app-extension";
-		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -291,9 +259,6 @@
 						LastSwiftMigration = 1250;
 					};
 					A3D986719B842DDD8C1D5879 = {
-						DevelopmentTeam = 63F8PGP9K2;
-					};
-					B351B95E386640CAB774F952 = {
 						DevelopmentTeam = 63F8PGP9K2;
 					};
 				};
@@ -312,7 +277,6 @@
 			projectRoot = "";
 			targets = (
 				13B07F861A680F5B00A75B9A /* frontend */,
-				B351B95E386640CAB774F952 /* SuguSearchShare */,
 				A3D986719B842DDD8C1D5879 /* SuguWidget */,
 			);
 		};
@@ -479,14 +443,6 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		0176AC780E3748428F85D8AF /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				09BDBC89C758498EA3A9A271 /* ShareViewController.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		13B07F871A680F5B00A75B9A /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -583,32 +539,6 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VERSIONING_SYSTEM = "apple-generic";
-			};
-			name = Release;
-		};
-		2D38EE8E8DAF48079DCABEA7 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				APPLICATION_EXTENSION_API_ONLY = YES;
-				CLANG_ENABLE_MODULES = YES;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 63F8PGP9K2;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = SuguSearchShare/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.0.0;
-				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
-				PRODUCT_BUNDLE_IDENTIFIER = com.sugu.ios.SuguSearchShare;
-				PRODUCT_NAME = SuguSearchShare;
-				SKIP_INSTALL = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -789,48 +719,9 @@
 			};
 			name = Debug;
 		};
-		D1C3F80BB9734FB79B5E29C3 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				APPLICATION_EXTENSION_API_ONLY = YES;
-				CLANG_ENABLE_MODULES = YES;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 63F8PGP9K2;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"DEBUG=1",
-					"$(inherited)",
-				);
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = SuguSearchShare/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.0.0;
-				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
-				PRODUCT_BUNDLE_IDENTIFIER = com.sugu.ios.SuguSearchShare;
-				PRODUCT_NAME = SuguSearchShare;
-				SKIP_INSTALL = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		11B8B65F937948F6937D530A /* Build configuration list for PBXNativeTarget "SuguSearchShare" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				D1C3F80BB9734FB79B5E29C3 /* Debug */,
-				2D38EE8E8DAF48079DCABEA7 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "frontend" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
