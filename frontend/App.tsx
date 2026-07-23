@@ -34,7 +34,6 @@ import { API_BASE_URL } from "./src/config/api";
 import type { SearchResult, WordDetailItem, WordItem } from "./src/types";
 import {
     clearSuguWidgetWords,
-    getSuguWidgetSnapshot,
     syncSuguWidgetWords,
 } from "./src/widget/suguWidget";
 
@@ -58,9 +57,6 @@ type ProReturnScreen = "signin" | "list" | "search";
 const normalizeToken = (raw: string) => raw.trim().replace(/^"|"$/g, "");
 const MIN_BOOT_SPLASH_DURATION_MS = 2000;
 const FORCE_SHOW_ONBOARDING = false;
-const SUGU_WIDGET_REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000;
-const SUGU_WIDGET_MIN_DAILY_WORDS = 5;
-const SUGU_WIDGET_MAX_DAILY_WORDS = 10;
 type SuguDeepLink =
     | { type: "word"; wordId: number }
     | { type: "search"; word?: string };
@@ -100,61 +96,6 @@ const parseSuguDeepLink = (url: string): SuguDeepLink | null => {
     return null;
 };
 
-const shuffleWords = (wordList: WordItem[]) => {
-    const shuffled = [...wordList];
-
-    for (let index = shuffled.length - 1; index > 0; index -= 1) {
-        const swapIndex = Math.floor(Math.random() * (index + 1));
-        [shuffled[index], shuffled[swapIndex]] = [
-            shuffled[swapIndex],
-            shuffled[index],
-        ];
-    }
-
-    return shuffled;
-};
-
-const pickDailyWidgetWords = (wordList: WordItem[]) => {
-    const maxCount = Math.min(SUGU_WIDGET_MAX_DAILY_WORDS, wordList.length);
-    const minCount = Math.min(SUGU_WIDGET_MIN_DAILY_WORDS, maxCount);
-    const count =
-        minCount +
-        Math.floor(Math.random() * (maxCount - minCount + 1));
-
-    return shuffleWords(wordList).slice(0, count);
-};
-
-const shouldRefreshSuguWidgetSnapshot = async (wordCount: number) => {
-    const snapshot = await getSuguWidgetSnapshot();
-
-    if (!snapshot) {
-        return true;
-    }
-
-    try {
-        const parsed = JSON.parse(snapshot) as {
-            updatedAt?: string;
-            words?: unknown[];
-        };
-        const updatedAt = parsed.updatedAt
-            ? new Date(parsed.updatedAt).getTime()
-            : Number.NaN;
-        const hasWords = Array.isArray(parsed.words) && parsed.words.length > 0;
-        const expectedMinimumWords = Math.min(
-            SUGU_WIDGET_MIN_DAILY_WORDS,
-            wordCount,
-        );
-
-        return (
-            !Number.isFinite(updatedAt) ||
-            !hasWords ||
-            parsed.words!.length < expectedMinimumWords ||
-            Date.now() - updatedAt >= SUGU_WIDGET_REFRESH_INTERVAL_MS
-        );
-    } catch {
-        return true;
-    }
-};
 const ERROR_MESSAGE_BY_CODE: Record<string, string> = {
     BAD_REQUEST: "入力内容に誤りがあります",
     UNAUTHORIZED: "認証に失敗しました",
@@ -253,50 +194,39 @@ export default function App() {
     const buildGuestId = () =>
         `guest_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
 
-    const buildSuguWidgetWords = async (
-        wordList: WordItem[],
+    const buildSuguWidgetWord = async (
+        word: WordItem,
         currentToken: string,
     ) => {
-        if (wordList.length === 0) {
-            return [];
-        }
-
-        const pickedWords = pickDailyWidgetWords(wordList);
-        const widgetWords: Array<WordItem & { meaningCount?: number }> = [];
-
-        for (const pickedWord of pickedWords) {
-            try {
-                const response = await fetch(
-                    `${API_BASE_URL}/api/v1/words/${pickedWord.id}`,
-                    {
-                        headers: {
-                            Authorization: `Bearer ${currentToken}`,
-                        },
+        try {
+            const response = await fetch(
+                `${API_BASE_URL}/api/v1/words/${word.id}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${currentToken}`,
                     },
-                );
+                },
+            );
 
-                if (!response.ok) {
-                    throw new Error(await response.text());
-                }
-
-                const detail = (await response.json()) as WordDetailItem;
-                const primaryEntry = detail.entries[0];
-
-                widgetWords.push({
-                    ...pickedWord,
-                    word: detail.word || pickedWord.word,
-                    meaningEnglish: primaryEntry?.meaning_en ?? "",
-                    meaningJapanese: primaryEntry?.meaning_ja ?? "",
-                    memo: primaryEntry?.example ?? pickedWord.memo,
-                    meaningCount: detail.entries.length,
-                });
-            } catch (error) {
-                console.log("Sugu widget detail sync fallback:", error);
-                widgetWords.push(pickedWord);
+            if (!response.ok) {
+                throw new Error(await response.text());
             }
-        }
 
-        return widgetWords;
+            const detail = (await response.json()) as WordDetailItem;
+            const primaryEntry = detail.entries[0];
+
+            return {
+                ...word,
+                word: detail.word || word.word,
+                meaningEnglish: primaryEntry?.meaning_en ?? "",
+                meaningJapanese: primaryEntry?.meaning_ja ?? "",
+                memo: primaryEntry?.example ?? word.memo,
+                meaningCount: detail.entries.length,
+            };
+        } catch (error) {
+            console.log("Sugu widget detail sync fallback:", error);
+            return word;
+        }
     };
 
     const fetchWords = async (currentToken: string) => {
@@ -318,18 +248,8 @@ export default function App() {
         const data = (await response.json()) as WordItem[];
         setWords(data);
 
-        if (Platform.OS !== "ios") {
-            return data;
-        }
-
-        if (data.length === 0) {
+        if (Platform.OS === "ios" && data.length === 0) {
             await syncSuguWidgetWords([]);
-        } else if (await shouldRefreshSuguWidgetSnapshot(data.length)) {
-            await syncSuguWidgetWords(
-                await buildSuguWidgetWords(data, currentToken),
-            );
-        } else {
-            console.log("Sugu widget sync skipped: daily snapshot is fresh");
         }
 
         return data;
@@ -614,6 +534,29 @@ export default function App() {
         }
     };
 
+    const handleAddWordToWidget = async (word: WordItem) => {
+        if (!token) {
+            return;
+        }
+
+        setLoading(true);
+        setErrorMessage(null);
+
+        try {
+            await syncSuguWidgetWords([
+                await buildSuguWidgetWord(word, token),
+            ]);
+        } catch (error) {
+            setErrorMessage(
+                error instanceof Error
+                    ? error.message
+                    : "Widgetへの追加に失敗しました。",
+            );
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleBackToList = () => {
         setSelectedWord(null);
         setListMenuOpen(false);
@@ -641,6 +584,9 @@ export default function App() {
         setGuestUpgradePromptVisible(false);
         setSearchBonusPromptVisible(false);
         setSearchBonusPromptErrorMessage(null);
+        if (token) {
+            void subscription.refreshStatus();
+        }
         setScreen("pro");
     };
 
@@ -721,6 +667,9 @@ export default function App() {
             );
             setSearchResult(null);
         } finally {
+            if (token) {
+                void subscription.refreshStatus();
+            }
             setSearchLoading(false);
         }
     };
@@ -1136,6 +1085,7 @@ export default function App() {
                 errorMessage={errorMessage}
                 onPressWord={handleSelectWord}
                 onDeleteWord={handleDeleteWord}
+                onAddWordToWidget={handleAddWordToWidget}
                 onOpenSearch={() => handleOpenSearch("list")}
                 onOpenTerms={handleOpenTerms}
                 onOpenPrivacyPolicy={handleOpenPrivacyPolicy}
@@ -1202,6 +1152,7 @@ export default function App() {
                 isLoadingProduct={subscription.isLoadingProduct}
                 isPurchasing={subscription.isPurchasing}
                 isRestoring={subscription.isRestoring}
+                isActive={subscription.isActive}
                 errorMessage={subscription.error}
                 purchaseState={subscription.purchaseState}
             />

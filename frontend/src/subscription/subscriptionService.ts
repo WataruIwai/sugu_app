@@ -1,6 +1,7 @@
 export type SubscriptionPurchaseState =
     | "idle"
     | "purchasing"
+    | "verifying"
     | "success"
     | "cancelled"
     | "error"

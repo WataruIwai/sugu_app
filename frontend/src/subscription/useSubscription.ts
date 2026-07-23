@@ -24,9 +24,11 @@ import {
 const PRODUCT_LOAD_ERROR_MESSAGE =
     "Sugu Proの商品情報を取得できませんでした。時間をおいて再度お試しください。";
 const PURCHASE_ERROR_MESSAGE =
-    "購入処理を開始できませんでした。時間をおいて再度お試しください。";
+    "購入処理に失敗しました。もう一度お試しください。";
+const PURCHASE_VERIFICATION_ERROR_MESSAGE =
+    "購入情報の確認に失敗しました。もう一度お試しください。";
 const RESTORE_ERROR_MESSAGE =
-    "購入の復元に失敗しました。時間をおいて再度お試しください。";
+    "購入の復元に失敗しました。もう一度お試しください。";
 
 type AppAccountTokenResponse = {
     appAccountToken?: string;
@@ -157,9 +159,14 @@ export const useSubscription = () => {
         onPurchaseSuccess: async (purchase) => {
             logPurchaseDetails("Sugu Pro purchase success:", purchase);
             setError(null);
-            setPurchaseState(
-                isPendingPurchase(purchase) ? "pending" : "success",
-            );
+
+            if (isPendingPurchase(purchase)) {
+                setPurchaseState("pending");
+                setIsPurchasing(false);
+                return;
+            }
+
+            setPurchaseState("verifying");
 
             try {
                 await verifySubscriptionPurchase(purchase);
@@ -171,18 +178,14 @@ export const useSubscription = () => {
                     isConsumable: false,
                 });
                 console.log("Sugu Pro transaction finished");
+                setPurchaseState("success");
             } catch (purchaseVerificationError) {
                 console.log(
                     "Sugu Pro purchase verification error:",
                     purchaseVerificationError,
                 );
                 setPurchaseState("error");
-                setError(
-                    getErrorMessage(
-                        purchaseVerificationError,
-                        "購入情報の確認に失敗しました。",
-                    ),
-                );
+                setError(PURCHASE_VERIFICATION_ERROR_MESSAGE);
             } finally {
                 setIsPurchasing(false);
             }
@@ -198,7 +201,7 @@ export const useSubscription = () => {
             }
 
             setPurchaseState("error");
-            setError(getErrorMessage(purchaseError, PURCHASE_ERROR_MESSAGE));
+            setError(PURCHASE_ERROR_MESSAGE);
         },
         onError: (iapError) => {
             console.log("Sugu Pro IAP error:", iapError);
@@ -336,7 +339,7 @@ export const useSubscription = () => {
             }
 
             setPurchaseState("error");
-            setError(getErrorMessage(purchaseError, PURCHASE_ERROR_MESSAGE));
+            setError(PURCHASE_ERROR_MESSAGE);
         }
     }, [
         connected,
@@ -392,7 +395,7 @@ export const useSubscription = () => {
         } catch (restoreError) {
             console.log("Sugu Pro restore error:", restoreError);
             setPurchaseState("error");
-            setError(getErrorMessage(restoreError, RESTORE_ERROR_MESSAGE));
+            setError(RESTORE_ERROR_MESSAGE);
         } finally {
             setIsRestoring(false);
         }

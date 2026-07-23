@@ -1,5 +1,6 @@
 import React from "react";
 import { Feather } from "@expo/vector-icons";
+import { ActivityIndicator } from "react-native";
 import styled from "styled-components/native";
 
 import { ScreenLayout } from "../layout/ScreenLayout";
@@ -13,6 +14,7 @@ type SuguProPageProps = {
     isLoadingProduct: boolean;
     isPurchasing: boolean;
     isRestoring: boolean;
+    isActive: boolean;
     errorMessage: string | null;
     purchaseState: SubscriptionPurchaseState;
 };
@@ -31,80 +33,117 @@ export const SuguProPage = ({
     isLoadingProduct,
     isPurchasing,
     isRestoring,
+    isActive,
     errorMessage,
     purchaseState,
-}: SuguProPageProps) => (
-    <ScreenLayout>
-        <TopRow>
-            <BackButton
-                activeOpacity={0.82}
-                onPress={onBack}
+}: SuguProPageProps) => {
+    const isProcessingPurchase =
+        isPurchasing ||
+        purchaseState === "purchasing" ||
+        purchaseState === "verifying";
+    const statusMessage =
+        isActive || isProcessingPurchase || isRestoring
+            ? ""
+            : getPurchaseStateMessage(purchaseState);
+    const purchaseButtonDisabled =
+        isActive || isLoadingProduct || isPurchasing || isRestoring;
+
+    return (
+        <ScreenLayout
+            scrollable={false}
+            fixedOverlay={
+                isProcessingPurchase ? (
+                    <PurchaseBlockingOverlay>
+                        <PurchaseBlockingCard>
+                            <ActivityIndicator
+                                size="small"
+                                color="#ffffff"
+                            />
+                            <PurchaseBlockingText>
+                                {purchaseState === "verifying"
+                                    ? "購入を確認中..."
+                                    : "購入処理中..."}
+                            </PurchaseBlockingText>
+                        </PurchaseBlockingCard>
+                    </PurchaseBlockingOverlay>
+                ) : null
+            }
+        >
+            <TopRow>
+                <BackButton
+                    activeOpacity={0.82}
+                    onPress={onBack}
+                >
+                    <BackIcon>←</BackIcon>
+                </BackButton>
+            </TopRow>
+
+            <Title>Sugu Pro</Title>
+
+            <FeatureList>
+                {PRO_FEATURES.map((feature) => (
+                    <FeatureRow key={feature}>
+                        <FeatureIconWrap>
+                            <Feather
+                                name="check"
+                                size={16}
+                                color="#111111"
+                            />
+                        </FeatureIconWrap>
+                        <FeatureText>{feature}</FeatureText>
+                    </FeatureRow>
+                ))}
+            </FeatureList>
+
+            <PriceArea>
+                {isLoadingProduct ? (
+                    <PricePlaceholder>価格を取得中...</PricePlaceholder>
+                ) : productPrice ? (
+                    <PriceRow>
+                        <ProductPrice>{productPrice}</ProductPrice>
+                        <ProductBillingCycle>月額・自動更新</ProductBillingCycle>
+                    </PriceRow>
+                ) : (
+                    <PricePlaceholder>価格を取得できませんでした</PricePlaceholder>
+                )}
+            </PriceArea>
+
+            {errorMessage ? <ErrorText>{errorMessage}</ErrorText> : null}
+            <StatusText>{statusMessage}</StatusText>
+
+            <PrimaryButton
+                activeOpacity={0.88}
+                onPress={onPurchase}
+                disabled={purchaseButtonDisabled}
+                $disabled={purchaseButtonDisabled}
             >
-                <BackIcon>←</BackIcon>
-            </BackButton>
-        </TopRow>
+                <PrimaryButtonText>
+                    {isActive
+                        ? "Sugu Pro 利用中"
+                        : "Sugu Proを始める"}
+                </PrimaryButtonText>
+            </PrimaryButton>
 
-        <Title>Sugu Pro</Title>
-
-        <FeatureList>
-            {PRO_FEATURES.map((feature) => (
-                <FeatureRow key={feature}>
-                    <FeatureIconWrap>
-                        <Feather
-                            name="check"
-                            size={16}
-                            color="#111111"
-                        />
-                    </FeatureIconWrap>
-                    <FeatureText>{feature}</FeatureText>
-                </FeatureRow>
-            ))}
-        </FeatureList>
-
-        <PriceArea>
-            {isLoadingProduct ? (
-                <PricePlaceholder>価格を取得中...</PricePlaceholder>
-            ) : productPrice ? (
-                <PriceRow>
-                    <ProductPrice>{productPrice}</ProductPrice>
-                    <ProductBillingCycle>月額・自動更新</ProductBillingCycle>
-                </PriceRow>
-            ) : (
-                <PricePlaceholder>価格を取得できませんでした</PricePlaceholder>
-            )}
-        </PriceArea>
-
-        {errorMessage ? <ErrorText>{errorMessage}</ErrorText> : null}
-        <StatusText>{getPurchaseStateMessage(purchaseState)}</StatusText>
-
-        <PrimaryButton
-            activeOpacity={0.88}
-            onPress={onPurchase}
-            disabled={isLoadingProduct || isPurchasing || isRestoring}
-            $disabled={isLoadingProduct || isPurchasing || isRestoring}
-        >
-            <PrimaryButtonText>
-                {isPurchasing ? "購入処理中..." : "Sugu Proを始める"}
-            </PrimaryButtonText>
-        </PrimaryButton>
-
-        <SecondaryButton
-            activeOpacity={0.84}
-            onPress={onRestore}
-            disabled={isPurchasing || isRestoring}
-            $disabled={isPurchasing || isRestoring}
-        >
-            <SecondaryButtonText>
-                {isRestoring ? "復元中..." : "購入を復元"}
-            </SecondaryButtonText>
-        </SecondaryButton>
-    </ScreenLayout>
-);
+            {!isActive ? (
+                <SecondaryButton
+                    activeOpacity={0.84}
+                    onPress={onRestore}
+                    disabled={isPurchasing || isRestoring}
+                    $disabled={isPurchasing || isRestoring}
+                >
+                    <SecondaryButtonText>
+                        {isRestoring ? "復元中..." : "購入を復元"}
+                    </SecondaryButtonText>
+                </SecondaryButton>
+            ) : null}
+        </ScreenLayout>
+    );
+};
 
 const getPurchaseStateMessage = (state: SubscriptionPurchaseState) => {
     switch (state) {
         case "success":
-            return "購入が完了しました。";
+            return "";
         case "cancelled":
             return "購入をキャンセルしました。";
         case "pending":
@@ -262,4 +301,30 @@ const SecondaryButtonText = styled.Text`
     font-size: 16px;
     line-height: 22px;
     font-weight: 700;
+`;
+
+const PurchaseBlockingOverlay = styled.View`
+    flex: 1;
+    background-color: rgba(0, 0, 0, 0.34);
+    align-items: center;
+    justify-content: center;
+    padding: 0 34px;
+`;
+
+const PurchaseBlockingCard = styled.View`
+    min-width: 168px;
+    min-height: 92px;
+    border-radius: 22px;
+    background-color: rgba(17, 17, 17, 0.88);
+    align-items: center;
+    justify-content: center;
+    padding: 20px 22px;
+`;
+
+const PurchaseBlockingText = styled.Text`
+    color: #ffffff;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 800;
+    margin-top: 12px;
 `;

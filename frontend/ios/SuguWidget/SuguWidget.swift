@@ -97,6 +97,49 @@ struct SuguWidgetView: View {
     @ViewBuilder
     private func content(for word: WidgetWord) -> some View {
         switch family {
+        case .systemLarge:
+            VStack(alignment: .leading, spacing: 14) {
+                Text(word.term)
+                    .font(.custom("Helvetica", size: 38).weight(.bold))
+                    .foregroundStyle(Color(hex: 0x111111))
+                    .lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text(japaneseMeaning(for: word))
+                    .font(.custom("Helvetica", size: 15).weight(.semibold))
+                    .foregroundStyle(Color(hex: 0x111111))
+                    .lineSpacing(3)
+                    .lineLimit(8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if !word.primaryMeaningEn.isEmpty {
+                    Text(word.primaryMeaningEn)
+                        .font(.custom("Helvetica", size: 15).weight(.semibold))
+                        .foregroundStyle(Color(hex: 0x6F6F73))
+                        .lineSpacing(3)
+                        .lineLimit(4)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                if let example = word.exampleEn?.trimmingCharacters(in: .whitespacesAndNewlines),
+                   !example.isEmpty {
+                    Text(example)
+                        .font(.custom("Helvetica", size: 15).weight(.semibold))
+                        .foregroundStyle(Color(hex: 0x8A8A8E))
+                        .lineSpacing(3)
+                        .lineLimit(4)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 4)
+                }
+                if word.meaningCount > 1 {
+                    Text("他\(word.meaningCount - 1)件の意味")
+                        .font(.custom("Helvetica", size: 12).weight(.semibold))
+                        .foregroundStyle(Color(hex: 0x8A8A8E))
+                        .lineLimit(1)
+                        .padding(.top, 2)
+                }
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 22)
         case .systemMedium:
             VStack(alignment: .leading, spacing: 10) {
                 Text(word.term)
@@ -165,6 +208,19 @@ struct SuguWidgetView: View {
     @ViewBuilder
     private var emptyContent: some View {
         switch family {
+        case .systemLarge:
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Sugu")
+                    .font(.custom("Helvetica", size: 32).weight(.bold))
+                    .foregroundStyle(Color(hex: 0x111111))
+                Text("単語を選ぶと\nここに表示されます")
+                    .font(.custom("Helvetica", size: 16).weight(.semibold))
+                    .foregroundStyle(Color(hex: 0x8A8A8E))
+                    .lineSpacing(4)
+                    .lineLimit(2)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .padding(20)
         case .accessoryRectangular:
             VStack(alignment: .leading, spacing: 2) {
                 Text("Sugu")
@@ -213,10 +269,11 @@ struct SuguWidget: Widget {
             SuguWidgetView(entry: entry)
         }
         .configurationDisplayName("Sugu")
-        .description("保存した単語をランダムに表示します。")
+        .description("選択した単語を表示します。")
         .supportedFamilies([
             .systemSmall,
             .systemMedium,
+            .systemLarge,
             .accessoryCircular,
             .accessoryRectangular,
             .accessoryInline

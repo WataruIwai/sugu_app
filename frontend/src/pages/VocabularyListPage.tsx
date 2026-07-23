@@ -12,6 +12,7 @@ type VocabularyListPageProps = {
     errorMessage: string | null;
     onPressWord: (wordId: number) => void;
     onDeleteWord: (wordId: number) => void;
+    onAddWordToWidget: (word: WordItem) => void;
     onOpenSearch: () => void;
     onOpenTerms: () => void;
     onOpenPrivacyPolicy: () => void;
@@ -29,6 +30,7 @@ export const VocabularyListPage = ({
     errorMessage,
     onPressWord,
     onDeleteWord,
+    onAddWordToWidget,
     onOpenSearch,
     onOpenTerms,
     onOpenPrivacyPolicy,
@@ -41,6 +43,7 @@ export const VocabularyListPage = ({
     onLogout,
 }: VocabularyListPageProps) => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [actionWord, setActionWord] = useState<WordItem | null>(null);
     const [listSearchText, setListSearchText] = useState("");
 
     const normalizedSearchText = listSearchText.trim().toLowerCase();
@@ -70,10 +73,10 @@ export const VocabularyListPage = ({
             <WordListItem
                 word={item}
                 onPressWord={onPressWord}
-                onDeleteWord={onDeleteWord}
+                onOpenActions={setActionWord}
             />
         ),
-        [onDeleteWord, onPressWord],
+        [onPressWord],
     );
 
     const keyExtractor = useCallback((word: WordItem) => String(word.id), []);
@@ -213,6 +216,40 @@ export const VocabularyListPage = ({
                             </ConfirmOverlay>
                         ) : null}
                     </MenuOverlay>
+                ) : actionWord ? (
+                    <WordActionOverlay>
+                        <WordActionBackdrop
+                            activeOpacity={1}
+                            onPress={() => setActionWord(null)}
+                        />
+                        <WordActionCard>
+                            <WordActionButton
+                                activeOpacity={0.84}
+                                onPress={() => {
+                                    onAddWordToWidget(actionWord);
+                                    setActionWord(null);
+                                }}
+                            >
+                                <WordActionLabel>
+                                    Widgetに表示
+                                </WordActionLabel>
+                            </WordActionButton>
+                            <WordActionHint>
+                                ※ Widget未追加の場合は先に追加してください。
+                            </WordActionHint>
+                            <WordActionDangerButton
+                                activeOpacity={0.84}
+                                onPress={() => {
+                                    onDeleteWord(actionWord.id);
+                                    setActionWord(null);
+                                }}
+                            >
+                                <WordActionDangerLabel>
+                                    削除
+                                </WordActionDangerLabel>
+                            </WordActionDangerButton>
+                        </WordActionCard>
+                    </WordActionOverlay>
                 ) : null
             }
             fixedBottom={
@@ -285,23 +322,23 @@ const WordListItem = React.memo(
     ({
         word,
         onPressWord,
-        onDeleteWord,
+        onOpenActions,
     }: {
         word: WordItem;
         onPressWord: (wordId: number) => void;
-        onDeleteWord: (wordId: number) => void;
+        onOpenActions: (word: WordItem) => void;
     }) => (
         <WordRow>
             <WordMain onPress={() => onPressWord(word.id)}>
                 <WordTitle>{word.word || "Hello"}</WordTitle>
             </WordMain>
-            <DeleteButton onPress={() => onDeleteWord(word.id)}>
+            <WordIconButton onPress={() => onOpenActions(word)}>
                 <Feather
-                    name="trash-2"
-                    size={18}
-                    color="#d9485f"
+                    name="more-horizontal"
+                    size={21}
+                    color="#555555"
                 />
-            </DeleteButton>
+            </WordIconButton>
         </WordRow>
     ),
 );
@@ -323,14 +360,15 @@ const MenuButton = styled.TouchableOpacity`
 `;
 
 const ProBadgeText = styled.Text`
-    color: #8a8a8e;
+    color: #111111;
     font-size: 12px;
     line-height: 16px;
-    font-weight: 500;
-    border-width: 0.5px;
-    border-color: #8a8a8e;
+    font-weight: 700;
+    border-width: 1px;
+    border-color: #111111;
     border-radius: 6px;
     padding: 3px 8px;
+    transform: translateY(12px);
 `;
 
 const MenuIcon = styled.Text`
@@ -506,12 +544,81 @@ const WordTitle = styled.Text`
     font-weight: 700;
 `;
 
-const DeleteButton = styled.TouchableOpacity`
-    width: 22px;
-    height: 22px;
+const WordIconButton = styled.TouchableOpacity`
+    width: 30px;
+    height: 30px;
     align-items: center;
     justify-content: center;
-    margin-left: 10px;
+    margin-left: 6px;
+`;
+
+const WordActionOverlay = styled.View`
+    flex: 1;
+    justify-content: center;
+    padding: 0 20px 84px;
+`;
+
+const WordActionBackdrop = styled.TouchableOpacity`
+    position: absolute;
+    top: 0px;
+    right: 0px;
+    bottom: 0px;
+    left: 0px;
+    background-color: rgba(0, 0, 0, 0.16);
+`;
+
+const WordActionCard = styled.View`
+    width: 100%;
+    border-radius: 20px;
+    background-color: #ffffff;
+    padding: 24px 22px;
+    shadow-color: #000000;
+    shadow-opacity: 0.12;
+    shadow-radius: 18px;
+    shadow-offset: 0px 8px;
+    elevation: 8;
+`;
+
+const WordActionButton = styled.TouchableOpacity`
+    height: 54px;
+    border-radius: 16px;
+    background-color: #111111;
+    align-items: center;
+    justify-content: center;
+`;
+
+const WordActionLabel = styled.Text`
+    color: #ffffff;
+    font-size: 16px;
+    line-height: 22px;
+    font-weight: 800;
+`;
+
+const WordActionHint = styled.Text`
+    color: #8a8a8e;
+    font-size: 10px;
+    line-height: 15px;
+    font-weight: 500;
+    margin-top: 8px;
+    margin-bottom: 24px;
+    margin-left: 4px;
+`;
+
+const WordActionDangerButton = styled.TouchableOpacity`
+    height: 54px;
+    border-radius: 16px;
+    border-width: 1px;
+    border-color: #edd1d7;
+    background-color: #ffffff;
+    align-items: center;
+    justify-content: center;
+`;
+
+const WordActionDangerLabel = styled.Text`
+    color: #d9485f;
+    font-size: 16px;
+    line-height: 22px;
+    font-weight: 800;
 `;
 
 const SearchTriggerButton = styled.TouchableOpacity`
