@@ -31,6 +31,7 @@ type SearchPageProps = {
     onCloseSearchBonusPrompt: () => void;
     onNavigateSignUpFromGuestPrompt: () => void;
     onWatchSearchBonusAd: () => void;
+    onOpenPro: () => void;
 };
 
 export const SearchPage = ({
@@ -56,10 +57,12 @@ export const SearchPage = ({
     onCloseSearchBonusPrompt,
     onNavigateSignUpFromGuestPrompt,
     onWatchSearchBonusAd,
+    onOpenPro,
 }: SearchPageProps) => {
     const loadingProgress = useRef(new Animated.Value(0)).current;
     const [addedToMyList, setAddedToMyList] = useState(false);
     const canShowAddToMyListButton =
+        !searchLoading &&
         canAddToMyList &&
         searchResult?.status === "SUCCESS" &&
         Boolean(searchResult.word) &&
@@ -204,6 +207,22 @@ export const SearchPage = ({
                                     </SearchBonusPrimaryText>
                                 </SearchBonusPrimaryButton>
                             </SearchBonusActions>
+                            <SearchBonusDivider />
+                            <SearchBonusProBlock>
+                                <SearchBonusProTitle>Sugu Pro</SearchBonusProTitle>
+                                <SearchBonusProText>広告なし</SearchBonusProText>
+                                <SearchBonusProText>
+                                    検索回数無制限
+                                </SearchBonusProText>
+                                <SearchBonusProButton
+                                    activeOpacity={0.86}
+                                    onPress={onOpenPro}
+                                >
+                                    <SearchBonusProButtonText>
+                                        Sugu Proへアップグレード
+                                    </SearchBonusProButtonText>
+                                </SearchBonusProButton>
+                            </SearchBonusProBlock>
                         </SearchBonusCard>
                     </SearchBonusOverlay>
                 ) : null}
@@ -211,7 +230,10 @@ export const SearchPage = ({
         ) : null;
 
     return (
-        <ScreenLayout fixedOverlay={fixedOverlay}>
+        <ScreenLayout
+            scrollable={false}
+            fixedOverlay={fixedOverlay}
+        >
             <SearchHeader>
                 <HeaderBackButton onPress={onBack}>
                     <BackIcon>←</BackIcon>
@@ -236,6 +258,27 @@ export const SearchPage = ({
                     </ClearButton>
                 </SearchTrack>
             </SearchHeader>
+
+            {!searchLoading && searchResult ? (
+                <ResultHeaderBlock>
+                    <ResultWord>{searchResult.word}</ResultWord>
+                    {showPronunciationButton ? (
+                        <PronunciationButton
+                            activeOpacity={0.82}
+                            onPress={handlePronounceWord}
+                        >
+                            <Feather
+                                name="volume-2"
+                                size={20}
+                                color="#222222"
+                            />
+                            <PronunciationButtonText>
+                                発音を聞く
+                            </PronunciationButtonText>
+                        </PronunciationButton>
+                    ) : null}
+                </ResultHeaderBlock>
+            ) : null}
 
             <ResultArea showsVerticalScrollIndicator={false}>
                 {searchErrorMessage ? (
@@ -288,23 +331,6 @@ export const SearchPage = ({
 
                 {!searchLoading && searchResult ? (
                     <ResultBlock>
-                        <ResultWord>{searchResult.word}</ResultWord>
-                        {showPronunciationButton ? (
-                            <PronunciationButton
-                                activeOpacity={0.82}
-                                onPress={handlePronounceWord}
-                            >
-                                <Feather
-                                    name="volume-2"
-                                    size={20}
-                                    color="#222222"
-                                />
-                                <PronunciationButtonText>
-                                    発音を聞く
-                                </PronunciationButtonText>
-                            </PronunciationButton>
-                        ) : null}
-
                         {searchResult.entries &&
                         searchResult.entries.length > 0 ? (
                             <Section>
@@ -341,33 +367,33 @@ export const SearchPage = ({
                                 </CandidateHintText>
                             </CandidateSection>
                         ) : null}
-
-                        {canShowAddToMyListButton ? (
-                            <AddButton
-                                activeOpacity={0.88}
-                                disabled={addToListLoading || addedToMyList}
-                                onPress={handleAddToMyList}
-                                $success={addedToMyList}
-                            >
-                                {addedToMyList ? (
-                                    <Feather
-                                        name="check"
-                                        size={18}
-                                        color="#2e8b57"
-                                    />
-                                ) : null}
-                                <AddButtonText $success={addedToMyList}>
-                                    {addToListLoading
-                                        ? "Adding..."
-                                        : addedToMyList
-                                          ? "Added to My List"
-                                          : "Add My List+"}
-                                </AddButtonText>
-                            </AddButton>
-                        ) : null}
                     </ResultBlock>
                 ) : null}
             </ResultArea>
+
+            {canShowAddToMyListButton ? (
+                <AddButton
+                    activeOpacity={0.88}
+                    disabled={addToListLoading || addedToMyList}
+                    onPress={handleAddToMyList}
+                    $success={addedToMyList}
+                >
+                    {addedToMyList ? (
+                        <Feather
+                            name="check"
+                            size={18}
+                            color="#2e8b57"
+                        />
+                    ) : null}
+                    <AddButtonText $success={addedToMyList}>
+                        {addToListLoading
+                            ? "Adding..."
+                            : addedToMyList
+                              ? "Added to My List"
+                              : "Add My List+"}
+                    </AddButtonText>
+                </AddButton>
+            ) : null}
         </ScreenLayout>
     );
 };
@@ -431,9 +457,13 @@ const ClearText = styled.Text`
 `;
 
 const ResultArea = styled.ScrollView.attrs({
+    bounces: false,
     contentContainerStyle: {
         flexGrow: 1,
+        paddingBottom: 12,
     },
+    alwaysBounceVertical: false,
+    overScrollMode: "never",
 })`
     flex: 1;
 `;
@@ -486,8 +516,12 @@ const LoadingDot = styled.View`
 
 const AnimatedLoadingDot = Animated.createAnimatedComponent(LoadingDot);
 
+const ResultHeaderBlock = styled.View`
+    margin-bottom: 26px;
+`;
+
 const ResultBlock = styled.View`
-    padding-bottom: 24px;
+    padding-bottom: 8px;
 `;
 
 const ResultWord = styled.Text`
@@ -591,7 +625,8 @@ const CandidateHintText = styled.Text`
 `;
 
 const AddButton = styled.TouchableOpacity<{ $success: boolean }>`
-    margin-top: 14px;
+    margin-top: 12px;
+    margin-bottom: 8px;
     align-self: stretch;
     height: 52px;
     border-radius: 26px;
@@ -732,19 +767,19 @@ const SearchBonusErrorText = styled.Text`
 
 const SearchBonusActions = styled.View`
     flex-direction: row;
-    justify-content: flex-end;
+    justify-content: space-between;
     margin-top: 20px;
 `;
 
 const SearchBonusSecondaryButton = styled.TouchableOpacity`
-    min-width: 108px;
+    flex: 1;
     height: 44px;
     border-radius: 14px;
     border-width: 1px;
     border-color: #cfcfcf;
     align-items: center;
     justify-content: center;
-    margin-right: 10px;
+    margin-right: 6px;
     padding: 0 16px;
 `;
 
@@ -755,17 +790,60 @@ const SearchBonusSecondaryText = styled.Text`
 `;
 
 const SearchBonusPrimaryButton = styled.TouchableOpacity`
-    min-width: 132px;
+    flex: 1;
     height: 44px;
     border-radius: 14px;
     background-color: #1f1f1f;
     align-items: center;
     justify-content: center;
+    margin-left: 6px;
     padding: 0 16px;
 `;
 
 const SearchBonusPrimaryText = styled.Text`
     color: #ffffff;
     font-size: 15px;
+    font-weight: 700;
+`;
+
+const SearchBonusDivider = styled.View`
+    height: 1px;
+    background-color: #dedede;
+    margin: 22px 0 18px;
+`;
+
+const SearchBonusProBlock = styled.View`
+    align-items: stretch;
+`;
+
+const SearchBonusProTitle = styled.Text`
+    color: #161616;
+    font-size: 18px;
+    line-height: 24px;
+    font-weight: 800;
+    margin-bottom: 8px;
+`;
+
+const SearchBonusProText = styled.Text`
+    color: #555555;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 600;
+`;
+
+const SearchBonusProButton = styled.TouchableOpacity`
+    height: 44px;
+    border-radius: 14px;
+    background-color: #1f1f1f;
+    align-items: center;
+    justify-content: center;
+    margin-top: 14px;
+    padding: 0 16px;
+`;
+
+const SearchBonusProButtonText = styled.Text`
+    color: #ffffff;
+    font-size: 15px;
+    line-height: 20px;
     font-weight: 700;
 `;

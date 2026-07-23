@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Linking, Platform } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AppState, Linking, Platform } from "react-native";
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as Crypto from "expo-crypto";
 import {
@@ -26,11 +26,17 @@ import { SignInPage } from "./src/pages/SignInPage";
 import { VocabularyListPage } from "./src/pages/VocabularyListPage";
 import { WordDetailPage } from "./src/pages/WordDetailPage";
 import { SearchPage } from "./src/pages/SearchPage";
+import { SuguProPage } from "./src/pages/SuguProPage";
 import { BootSplashPage } from "./src/pages/BootSplashPage";
 import { OnboardingPage } from "./src/pages/OnboardingPage";
-import { SearchResult, WordDetailItem, WordItem } from "./src/types";
+import { useSubscription } from "./src/subscription/useSubscription";
+import { API_BASE_URL } from "./src/config/api";
+import type { SearchResult, WordDetailItem, WordItem } from "./src/types";
+import {
+    clearSuguWidgetWords,
+    syncSuguWidgetWords,
+} from "./src/widget/suguWidget";
 
-const API_BASE_URL = "http://localhost:8082";
 const TERMS_URL =
     "https://www.notion.so/3559a7163b3880239ec3ed3cfed7bbff?source=copy_link";
 const PRIVACY_POLICY_URL =
@@ -43,12 +49,53 @@ type Screen =
     | "signin"
     | "list"
     | "detail"
-    | "search";
+    | "search"
+    | "pro";
 type SearchReturnScreen = "signin" | "list" | "detail";
+type ProReturnScreen = "signin" | "list" | "search";
 
 const normalizeToken = (raw: string) => raw.trim().replace(/^"|"$/g, "");
 const MIN_BOOT_SPLASH_DURATION_MS = 2000;
 const FORCE_SHOW_ONBOARDING = false;
+type SuguDeepLink =
+    | { type: "word"; wordId: number }
+    | { type: "search"; word?: string };
+
+const getQueryValue = (query: string | undefined, key: string) => {
+    if (!query) {
+        return undefined;
+    }
+
+    const pair = query
+        .split("&")
+        .map((part) => part.split("="))
+        .find(([name]) => decodeURIComponent(name) === key);
+
+    return pair?.[1]
+        ? decodeURIComponent(pair[1].replace(/\+/g, " "))
+        : undefined;
+};
+
+const parseSuguDeepLink = (url: string): SuguDeepLink | null => {
+    if (!url.startsWith("sugu://")) {
+        return null;
+    }
+
+    const [baseUrl, query] = url.split("?");
+    const path = baseUrl.replace("sugu://", "");
+
+    if (path.startsWith("word/")) {
+        const wordId = Number(path.replace("word/", ""));
+        return Number.isFinite(wordId) ? { type: "word", wordId } : null;
+    }
+
+    if (path === "search") {
+        return { type: "search", word: getQueryValue(query, "word") };
+    }
+
+    return null;
+};
+
 const ERROR_MESSAGE_BY_CODE: Record<string, string> = {
     BAD_REQUEST: "入力内容に誤りがあります",
     UNAUTHORIZED: "認証に失敗しました",
@@ -91,7 +138,9 @@ const generateNonce = (byteLength = 32) =>
         .join("");
 
 export default function App() {
+    const subscription = useSubscription();
     const bootStartedAtRef = useRef(Date.now());
+    const handledInitialUrlRef = useRef<string | null>(null);
     const [screen, setScreen] = useState<Screen>("signin");
     const [token, setToken] = useState<string | null>(null);
     const [guestId, setGuestId] = useState<string | null>(null);
@@ -112,6 +161,8 @@ export default function App() {
     const [searchResult, setSearchResult] = useState<SearchResult | null>(null);
     const [searchReturnScreen, setSearchReturnScreen] =
         useState<SearchReturnScreen>("list");
+    const [proReturnScreen, setProReturnScreen] =
+        useState<ProReturnScreen>("list");
 
     const [loading, setLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -143,6 +194,41 @@ export default function App() {
     const buildGuestId = () =>
         `guest_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
 
+    const buildSuguWidgetWord = async (
+        word: WordItem,
+        currentToken: string,
+    ) => {
+        try {
+            const response = await fetch(
+                `${API_BASE_URL}/api/v1/words/${word.id}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${currentToken}`,
+                    },
+                },
+            );
+
+            if (!response.ok) {
+                throw new Error(await response.text());
+            }
+
+            const detail = (await response.json()) as WordDetailItem;
+            const primaryEntry = detail.entries[0];
+
+            return {
+                ...word,
+                word: detail.word || word.word,
+                meaningEnglish: primaryEntry?.meaning_en ?? "",
+                meaningJapanese: primaryEntry?.meaning_ja ?? "",
+                memo: primaryEntry?.example ?? word.memo,
+                meaningCount: detail.entries.length,
+            };
+        } catch (error) {
+            console.log("Sugu widget detail sync fallback:", error);
+            return word;
+        }
+    };
+
     const fetchWords = async (currentToken: string) => {
         const response = await fetch(`${API_BASE_URL}/api/v1/words`, {
             headers: {
@@ -161,6 +247,12 @@ export default function App() {
 
         const data = (await response.json()) as WordItem[];
         setWords(data);
+
+        if (Platform.OS === "ios" && data.length === 0) {
+            await syncSuguWidgetWords([]);
+        }
+
+        return data;
     };
 
     const fetchWordDetail = async (wordId: number, currentToken: string) => {
@@ -361,6 +453,52 @@ export default function App() {
         }
     };
 
+    const handleSuguDeepLink = useCallback(
+        async (url: string) => {
+            const deepLink = parseSuguDeepLink(url);
+
+            if (!deepLink) {
+                return;
+            }
+
+            setGuestUpgradePromptVisible(false);
+            setSearchBonusPromptVisible(false);
+            setSearchBonusPromptErrorMessage(null);
+            setErrorMessage(null);
+
+            if (deepLink.type === "search") {
+                setSearchText(deepLink.word ?? "");
+                setSearchResult(null);
+                setSearchErrorMessage(null);
+                setSearchReturnScreen(token ? "list" : "signin");
+                setScreen(token || guestId ? "search" : "signin");
+                return;
+            }
+
+            if (!token) {
+                setScreen("signin");
+                return;
+            }
+
+            setLoading(true);
+
+            try {
+                await fetchWordDetail(deepLink.wordId, token);
+            } catch (error) {
+                setSelectedWord(null);
+                setScreen("list");
+                setErrorMessage(
+                    error instanceof Error
+                        ? error.message
+                        : "単語詳細の取得に失敗しました。",
+                );
+            } finally {
+                setLoading(false);
+            }
+        },
+        [guestId, token],
+    );
+
     const handleDeleteWord = async (wordId: number) => {
         if (!token) return;
 
@@ -396,6 +534,29 @@ export default function App() {
         }
     };
 
+    const handleAddWordToWidget = async (word: WordItem) => {
+        if (!token) {
+            return;
+        }
+
+        setLoading(true);
+        setErrorMessage(null);
+
+        try {
+            await syncSuguWidgetWords([
+                await buildSuguWidgetWord(word, token),
+            ]);
+        } catch (error) {
+            setErrorMessage(
+                error instanceof Error
+                    ? error.message
+                    : "Widgetへの追加に失敗しました。",
+            );
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleBackToList = () => {
         setSelectedWord(null);
         setListMenuOpen(false);
@@ -415,6 +576,25 @@ export default function App() {
         setSearchBonusPromptVisible(false);
         setSearchBonusPromptErrorMessage(null);
         setScreen(searchReturnScreen);
+    };
+
+    const handleOpenPro = (from: ProReturnScreen) => {
+        setProReturnScreen(from);
+        setListMenuOpen(false);
+        setGuestUpgradePromptVisible(false);
+        setSearchBonusPromptVisible(false);
+        setSearchBonusPromptErrorMessage(null);
+        if (token) {
+            void subscription.refreshStatus();
+        }
+        setScreen("pro");
+    };
+
+    const handleBackFromPro = () => {
+        if (token) {
+            void subscription.refreshStatus();
+        }
+        setScreen(proReturnScreen);
     };
 
     const handleDictionarySearch = async () => {
@@ -487,6 +667,9 @@ export default function App() {
             );
             setSearchResult(null);
         } finally {
+            if (token) {
+                void subscription.refreshStatus();
+            }
             setSearchLoading(false);
         }
     };
@@ -617,6 +800,7 @@ export default function App() {
 
     const handleLogout = async () => {
         await deleteAuthToken();
+        await clearSuguWidgetWords();
         setToken(null);
         setWords([]);
         setSelectedWord(null);
@@ -787,6 +971,33 @@ export default function App() {
     }, [bootstrapping]);
 
     useEffect(() => {
+        if (bootstrapping) {
+            return;
+        }
+
+        const handleInitialUrl = async () => {
+            const initialUrl = await Linking.getInitialURL();
+
+            if (!initialUrl || handledInitialUrlRef.current === initialUrl) {
+                return;
+            }
+
+            handledInitialUrlRef.current = initialUrl;
+            await handleSuguDeepLink(initialUrl);
+        };
+
+        void handleInitialUrl();
+
+        const subscription = Linking.addEventListener("url", ({ url }) => {
+            void handleSuguDeepLink(url);
+        });
+
+        return () => {
+            subscription.remove();
+        };
+    }, [bootstrapping, handleSuguDeepLink]);
+
+    useEffect(() => {
         if (!authenticated) {
             return;
         }
@@ -795,6 +1006,25 @@ export default function App() {
             void handleRefreshWords();
         }
     }, [authenticated, screen]);
+
+    useEffect(() => {
+        if (!token) {
+            return;
+        }
+
+        void subscription.refreshStatus();
+
+        const subscriptionStatusListener = AppState.addEventListener(
+            "change",
+            (state) => {
+                if (state === "active") {
+                    void subscription.refreshStatus();
+                }
+            },
+        );
+
+        return () => subscriptionStatusListener.remove();
+    }, [subscription.refreshStatus, token]);
 
     useEffect(() => {
         if (bootstrapping || attCheckCompleted) {
@@ -855,11 +1085,14 @@ export default function App() {
                 errorMessage={errorMessage}
                 onPressWord={handleSelectWord}
                 onDeleteWord={handleDeleteWord}
+                onAddWordToWidget={handleAddWordToWidget}
                 onOpenSearch={() => handleOpenSearch("list")}
                 onOpenTerms={handleOpenTerms}
                 onOpenPrivacyPolicy={handleOpenPrivacyPolicy}
                 onOpenSupport={handleOpenSupport}
+                onOpenPro={() => handleOpenPro("list")}
                 onDeleteAccount={handleDeleteAccount}
+                isPro={Boolean(token) && subscription.isActive}
                 menuOpen={listMenuOpen}
                 onToggleMenu={() => setListMenuOpen((current) => !current)}
                 onLogout={handleLogout}
@@ -904,6 +1137,24 @@ export default function App() {
                     handleNavigateSignUpFromGuestPrompt
                 }
                 onWatchSearchBonusAd={handleWatchSearchBonusAd}
+                onOpenPro={() => handleOpenPro("search")}
+            />
+        );
+    }
+
+    if (screen === "pro") {
+        return (
+            <SuguProPage
+                onBack={handleBackFromPro}
+                onPurchase={subscription.purchase}
+                onRestore={subscription.restore}
+                productPrice={subscription.productPrice}
+                isLoadingProduct={subscription.isLoadingProduct}
+                isPurchasing={subscription.isPurchasing}
+                isRestoring={subscription.isRestoring}
+                isActive={subscription.isActive}
+                errorMessage={subscription.error}
+                purchaseState={subscription.purchaseState}
             />
         );
     }

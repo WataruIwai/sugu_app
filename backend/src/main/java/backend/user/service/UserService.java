@@ -3,6 +3,7 @@ package backend.user.service;
 import backend.exception.NotFoundException;
 import backend.user.domain.User;
 import backend.user.repository.UserRepository;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -24,5 +25,9 @@ public class UserService {
     }
 
     userRepository.deleteUser(userId);
+  }
+
+  public void updateAppAccountToken(long userId, UUID appAccountToken) {
+    userRepository.updateAppAccountToken(userId, appAccountToken);
   }
 }

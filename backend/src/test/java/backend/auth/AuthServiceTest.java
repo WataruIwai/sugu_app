@@ -21,47 +21,45 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
-    @Mock private UserRepository userRepository;
-    @Mock private JwtService jwtService;
-    @Mock private AppleIdentityTokenVerifier appleIdentityTokenVerifier;
+  @Mock private UserRepository userRepository;
+  @Mock private JwtService jwtService;
+  @Mock private AppleIdentityTokenVerifier appleIdentityTokenVerifier;
 
-    @InjectMocks private AuthService authService;
+  @InjectMocks private AuthService authService;
 
-    AppleAuthRequest request = new AppleAuthRequest("identityToken", "nonceHash", true);
+  AppleAuthRequest request = new AppleAuthRequest("identityToken", "nonceHash", true);
 
-    @Test
-    void createUserAndReturnTokenWhenAppleUserDoesNotExist() {
-        when(appleIdentityTokenVerifier.execute("identityToken", "nonceHash")).thenReturn(new VerifiedAppleUserInfo("sub", "email"));
-        when(userRepository.getUserByProviderUserId("sub")).thenReturn(null);
+  @Test
+  void createUserAndReturnTokenWhenAppleUserDoesNotExist() {
+    when(appleIdentityTokenVerifier.execute("identityToken", "nonceHash"))
+        .thenReturn(new VerifiedAppleUserInfo("sub", "email"));
+    when(userRepository.getUserByProviderUserId("sub")).thenReturn(null);
 
-        // Codex: 新規ユーザー作成後にJWT発行まで進めるためのmock設定です。
-        when(userRepository.createUserWithAppleId(any(User.class))).thenReturn(1L);
-        when(jwtService.generateToken(1L)).thenReturn("jwt-token");
+    // Codex: 新規ユーザー作成後にJWT発行まで進めるためのmock設定です。
+    when(userRepository.createUserWithAppleId(any(User.class))).thenReturn(1L);
+    when(jwtService.generateToken(1L)).thenReturn("jwt-token");
 
-        // Codex: AuthServiceのhappy pathを実行しています。
-        String token = authService.signInWithAppleAuth(request);
+    // Codex: AuthServiceのhappy pathを実行しています。
+    String token = authService.signInWithAppleAuth(request);
 
-        // Codex: 戻り値と、新規ユーザー作成が呼ばれたことを確認しています。
-        assertEquals("jwt-token", token);
-        verify(userRepository).createUserWithAppleId(any(User.class));
-        verify(jwtService).generateToken(1L);
-    }
+    // Codex: 戻り値と、新規ユーザー作成が呼ばれたことを確認しています。
+    assertEquals("jwt-token", token);
+    verify(userRepository).createUserWithAppleId(any(User.class));
+    verify(jwtService).generateToken(1L);
+  }
 
-    @Test
-    void returnTokenWhenAppleUserExist() {
-        when(appleIdentityTokenVerifier.execute("identityToken", "nonceHash")).thenReturn(new VerifiedAppleUserInfo("sub", "email"));
-        when(userRepository.getUserByProviderUserId("sub")).thenReturn(User.fromDb(
-            1L,
-            "email",
-            null,
-            "apple",
-            "sub"));
-        when(jwtService.generateToken(1L)).thenReturn("jwt-token");
+  @Test
+  void returnTokenWhenAppleUserExist() {
+    when(appleIdentityTokenVerifier.execute("identityToken", "nonceHash"))
+        .thenReturn(new VerifiedAppleUserInfo("sub", "email"));
+    when(userRepository.getUserByProviderUserId("sub"))
+        .thenReturn(User.fromDb(1L, "email", "apple", "sub", null));
+    when(jwtService.generateToken(1L)).thenReturn("jwt-token");
 
-        String token = authService.signInWithAppleAuth(request);
+    String token = authService.signInWithAppleAuth(request);
 
-        assertEquals("jwt-token", token);
-        verify(userRepository, never()).createUserWithAppleId(any(User.class));
-        verify(jwtService).generateToken(1L);
-    }
+    assertEquals("jwt-token", token);
+    verify(userRepository, never()).createUserWithAppleId(any(User.class));
+    verify(jwtService).generateToken(1L);
+  }
 }

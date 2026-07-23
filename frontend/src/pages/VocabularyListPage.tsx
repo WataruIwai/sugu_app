@@ -12,11 +12,14 @@ type VocabularyListPageProps = {
     errorMessage: string | null;
     onPressWord: (wordId: number) => void;
     onDeleteWord: (wordId: number) => void;
+    onAddWordToWidget: (word: WordItem) => void;
     onOpenSearch: () => void;
     onOpenTerms: () => void;
     onOpenPrivacyPolicy: () => void;
     onOpenSupport: () => void;
+    onOpenPro: () => void;
     onDeleteAccount: () => void;
+    isPro: boolean;
     menuOpen: boolean;
     onToggleMenu: () => void;
     onLogout: () => void;
@@ -27,16 +30,20 @@ export const VocabularyListPage = ({
     errorMessage,
     onPressWord,
     onDeleteWord,
+    onAddWordToWidget,
     onOpenSearch,
     onOpenTerms,
     onOpenPrivacyPolicy,
     onOpenSupport,
+    onOpenPro,
     onDeleteAccount,
+    isPro,
     menuOpen,
     onToggleMenu,
     onLogout,
 }: VocabularyListPageProps) => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [actionWord, setActionWord] = useState<WordItem | null>(null);
     const [listSearchText, setListSearchText] = useState("");
 
     const normalizedSearchText = listSearchText.trim().toLowerCase();
@@ -66,10 +73,10 @@ export const VocabularyListPage = ({
             <WordListItem
                 word={item}
                 onPressWord={onPressWord}
-                onDeleteWord={onDeleteWord}
+                onOpenActions={setActionWord}
             />
         ),
-        [onDeleteWord, onPressWord],
+        [onPressWord],
     );
 
     const keyExtractor = useCallback((word: WordItem) => String(word.id), []);
@@ -86,14 +93,25 @@ export const VocabularyListPage = ({
     return (
         <ScreenLayout
             contentFillsViewport
+            horizontalPadding={20}
+            fixedTopOffset={40}
             scrollable={false}
             fixedTop={
-                <FixedMenuRow>
+                <FixedMenuRow $hasBadge={isPro}>
+                    {isPro ? <ProBadgeText>PRO</ProBadgeText> : null}
                     <MenuButton
                         activeOpacity={0.8}
                         onPress={onToggleMenu}
                     >
-                        <MenuIcon>{menuOpen ? "×" : "≡"}</MenuIcon>
+                        {menuOpen ? (
+                            <MenuIcon>×</MenuIcon>
+                        ) : (
+                            <Feather
+                                name="settings"
+                                size={21}
+                                color="#191919"
+                            />
+                        )}
                     </MenuButton>
                 </FixedMenuRow>
             }
@@ -101,32 +119,58 @@ export const VocabularyListPage = ({
                 menuOpen ? (
                     <MenuOverlay>
                         <MenuPanel>
-                            <PrimaryMenuButton
+                            <ProMenuButton
                                 activeOpacity={0.8}
-                                onPress={onLogout}
+                                onPress={onOpenPro}
                             >
-                                <PrimaryMenuLabel>ログアウト</PrimaryMenuLabel>
-                            </PrimaryMenuButton>
-                            <PrimaryMenuButton
-                                activeOpacity={0.8}
-                                onPress={onOpenPrivacyPolicy}
-                            >
-                                <PrimaryMenuLabel>
-                                    プライバシーポリシー
-                                </PrimaryMenuLabel>
-                            </PrimaryMenuButton>
-                            <PrimaryMenuButton
-                                activeOpacity={0.8}
-                                onPress={onOpenTerms}
-                            >
-                                <PrimaryMenuLabel>利用規約</PrimaryMenuLabel>
-                            </PrimaryMenuButton>
-                            <PrimaryMenuButton
-                                activeOpacity={0.8}
-                                onPress={onOpenSupport}
-                            >
-                                <PrimaryMenuLabel>お問い合わせ</PrimaryMenuLabel>
-                            </PrimaryMenuButton>
+                                <ProMenuLabel>
+                                    Sugu Proへアップグレード
+                                </ProMenuLabel>
+                                <Feather
+                                    name="chevron-right"
+                                    size={20}
+                                    color="#ffffff"
+                                />
+                            </ProMenuButton>
+
+                            <PrimaryMenuGroup>
+                                <PrimaryMenuButton
+                                    activeOpacity={0.8}
+                                    onPress={onLogout}
+                                >
+                                    <PrimaryMenuLabel>
+                                        ログアウト
+                                    </PrimaryMenuLabel>
+                                </PrimaryMenuButton>
+                                <PrimaryMenuButton
+                                    activeOpacity={0.8}
+                                    onPress={onOpenSupport}
+                                >
+                                    <PrimaryMenuLabel>
+                                        お問い合わせ
+                                    </PrimaryMenuLabel>
+                                </PrimaryMenuButton>
+                            </PrimaryMenuGroup>
+
+                            <ReferenceMenuGroup>
+                                <ReferenceMenuButton
+                                    activeOpacity={0.8}
+                                    onPress={onOpenPrivacyPolicy}
+                                >
+                                    <ReferenceMenuLabel>
+                                        プライバシーポリシー
+                                    </ReferenceMenuLabel>
+                                </ReferenceMenuButton>
+                                <ReferenceMenuButton
+                                    activeOpacity={0.8}
+                                    onPress={onOpenTerms}
+                                >
+                                    <ReferenceMenuLabel>
+                                        利用規約
+                                    </ReferenceMenuLabel>
+                                </ReferenceMenuButton>
+                            </ReferenceMenuGroup>
+
                             <DangerMenuButton
                                 activeOpacity={0.8}
                                 onPress={() => setShowDeleteConfirm(true)}
@@ -172,6 +216,40 @@ export const VocabularyListPage = ({
                             </ConfirmOverlay>
                         ) : null}
                     </MenuOverlay>
+                ) : actionWord ? (
+                    <WordActionOverlay>
+                        <WordActionBackdrop
+                            activeOpacity={1}
+                            onPress={() => setActionWord(null)}
+                        />
+                        <WordActionCard>
+                            <WordActionButton
+                                activeOpacity={0.84}
+                                onPress={() => {
+                                    onAddWordToWidget(actionWord);
+                                    setActionWord(null);
+                                }}
+                            >
+                                <WordActionLabel>
+                                    Widgetに表示
+                                </WordActionLabel>
+                            </WordActionButton>
+                            <WordActionHint>
+                                ※ Widget未追加の場合は先に追加してください。
+                            </WordActionHint>
+                            <WordActionDangerButton
+                                activeOpacity={0.84}
+                                onPress={() => {
+                                    onDeleteWord(actionWord.id);
+                                    setActionWord(null);
+                                }}
+                            >
+                                <WordActionDangerLabel>
+                                    削除
+                                </WordActionDangerLabel>
+                            </WordActionDangerButton>
+                        </WordActionCard>
+                    </WordActionOverlay>
                 ) : null
             }
             fixedBottom={
@@ -244,31 +322,33 @@ const WordListItem = React.memo(
     ({
         word,
         onPressWord,
-        onDeleteWord,
+        onOpenActions,
     }: {
         word: WordItem;
         onPressWord: (wordId: number) => void;
-        onDeleteWord: (wordId: number) => void;
+        onOpenActions: (word: WordItem) => void;
     }) => (
         <WordRow>
             <WordMain onPress={() => onPressWord(word.id)}>
                 <WordTitle>{word.word || "Hello"}</WordTitle>
             </WordMain>
-            <DeleteButton onPress={() => onDeleteWord(word.id)}>
+            <WordIconButton onPress={() => onOpenActions(word)}>
                 <Feather
-                    name="trash-2"
-                    size={18}
-                    color="#d9485f"
+                    name="more-horizontal"
+                    size={21}
+                    color="#555555"
                 />
-            </DeleteButton>
+            </WordIconButton>
         </WordRow>
     ),
 );
 
-const FixedMenuRow = styled.View`
+const FixedMenuRow = styled.View<{ $hasBadge: boolean }>`
     flex-direction: row;
-    justify-content: flex-end;
+    justify-content: ${(props) =>
+        props.$hasBadge ? "space-between" : "flex-end"};
     align-items: center;
+    padding-right: 14px;
 `;
 
 const MenuButton = styled.TouchableOpacity`
@@ -276,6 +356,19 @@ const MenuButton = styled.TouchableOpacity`
     height: 44px;
     align-items: flex-end;
     justify-content: center;
+    transform: translateY(12px);
+`;
+
+const ProBadgeText = styled.Text`
+    color: #111111;
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 700;
+    border-width: 1px;
+    border-color: #111111;
+    border-radius: 6px;
+    padding: 3px 8px;
+    transform: translateY(12px);
 `;
 
 const MenuIcon = styled.Text`
@@ -292,24 +385,67 @@ const MenuOverlay = styled.View`
 
 const MenuPanel = styled.View`
     flex: 1;
-    padding: 132px 34px 48px;
+    padding: 180px 34px 48px;
     justify-content: flex-start;
 `;
 
+const ProMenuButton = styled.TouchableOpacity`
+    min-height: 56px;
+    border-radius: 16px;
+    background-color: #111111;
+    padding: 16px 18px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+`;
+
+const ProMenuLabel = styled.Text`
+    flex: 1;
+    color: #ffffff;
+    font-family: ${WORD_DISPLAY_FONT_FAMILY};
+    font-size: 17px;
+    line-height: 22px;
+    font-weight: 700;
+    margin-right: 12px;
+`;
+
+const PrimaryMenuGroup = styled.View`
+    margin-bottom: 20px;
+`;
+
 const PrimaryMenuButton = styled.TouchableOpacity`
-    padding-top: 18px;
-    padding-bottom: 18px;
+    padding-top: 15px;
+    padding-bottom: 15px;
+    border-bottom-width: 0.5px;
+    border-bottom-color: #e5e5e5;
 `;
 
 const PrimaryMenuLabel = styled.Text`
-    color: #161616;
-    font-size: 28px;
-    line-height: 34px;
+    color: #111111;
+    font-size: 15px;
+    line-height: 21px;
     font-weight: 700;
 `;
 
+const ReferenceMenuGroup = styled.View`
+    margin-bottom: 40px;
+`;
+
+const ReferenceMenuButton = styled.TouchableOpacity`
+    padding-top: 11px;
+    padding-bottom: 11px;
+`;
+
+const ReferenceMenuLabel = styled.Text`
+    color: #8a8a8e;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 400;
+`;
+
 const DangerMenuButton = styled.TouchableOpacity`
-    padding-top: 28px;
+    padding-top: 0px;
 `;
 
 const DangerMenuLabel = styled.Text`
@@ -408,12 +544,81 @@ const WordTitle = styled.Text`
     font-weight: 700;
 `;
 
-const DeleteButton = styled.TouchableOpacity`
-    width: 22px;
-    height: 22px;
+const WordIconButton = styled.TouchableOpacity`
+    width: 30px;
+    height: 30px;
     align-items: center;
     justify-content: center;
-    margin-left: 10px;
+    margin-left: 6px;
+`;
+
+const WordActionOverlay = styled.View`
+    flex: 1;
+    justify-content: center;
+    padding: 0 20px 84px;
+`;
+
+const WordActionBackdrop = styled.TouchableOpacity`
+    position: absolute;
+    top: 0px;
+    right: 0px;
+    bottom: 0px;
+    left: 0px;
+    background-color: rgba(0, 0, 0, 0.16);
+`;
+
+const WordActionCard = styled.View`
+    width: 100%;
+    border-radius: 20px;
+    background-color: #ffffff;
+    padding: 24px 22px;
+    shadow-color: #000000;
+    shadow-opacity: 0.12;
+    shadow-radius: 18px;
+    shadow-offset: 0px 8px;
+    elevation: 8;
+`;
+
+const WordActionButton = styled.TouchableOpacity`
+    height: 54px;
+    border-radius: 16px;
+    background-color: #111111;
+    align-items: center;
+    justify-content: center;
+`;
+
+const WordActionLabel = styled.Text`
+    color: #ffffff;
+    font-size: 16px;
+    line-height: 22px;
+    font-weight: 800;
+`;
+
+const WordActionHint = styled.Text`
+    color: #8a8a8e;
+    font-size: 10px;
+    line-height: 15px;
+    font-weight: 500;
+    margin-top: 8px;
+    margin-bottom: 24px;
+    margin-left: 4px;
+`;
+
+const WordActionDangerButton = styled.TouchableOpacity`
+    height: 54px;
+    border-radius: 16px;
+    border-width: 1px;
+    border-color: #edd1d7;
+    background-color: #ffffff;
+    align-items: center;
+    justify-content: center;
+`;
+
+const WordActionDangerLabel = styled.Text`
+    color: #d9485f;
+    font-size: 16px;
+    line-height: 22px;
+    font-weight: 800;
 `;
 
 const SearchTriggerButton = styled.TouchableOpacity`

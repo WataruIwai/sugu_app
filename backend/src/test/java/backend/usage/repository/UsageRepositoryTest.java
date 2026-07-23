@@ -43,8 +43,7 @@ class UsageRepositoryTest {
   }
 
   @Test
-  void consumeGuestUsageDoesNotExceedBaseLimitWhenRequestsRunConcurrently()
-      throws Exception {
+  void consumeGuestUsageDoesNotExceedBaseLimitWhenRequestsRunConcurrently() throws Exception {
     GuestUsageCount usage = insertGuestUsage(1, 0, 0, 0);
 
     List<Boolean> results =
@@ -55,8 +54,7 @@ class UsageRepositoryTest {
   }
 
   @Test
-  void consumeGuestBonusUsageDoesNotExceedBonusCountWhenRequestsRunConcurrently()
-      throws Exception {
+  void consumeGuestBonusUsageDoesNotExceedBonusCountWhenRequestsRunConcurrently() throws Exception {
     GuestUsageCount usage = insertGuestUsage(0, 1, 0, 0);
 
     List<Boolean> results =
@@ -66,14 +64,14 @@ class UsageRepositoryTest {
     assertEquals(1, getGuestUsageCountColumn("bonus_used_count"));
   }
 
-  private List<Boolean> runTwoRequestsAtSameTime(ThrowingBooleanSupplier request)
-      throws Exception {
+  private List<Boolean> runTwoRequestsAtSameTime(ThrowingBooleanSupplier request) throws Exception {
     ExecutorService executorService = Executors.newFixedThreadPool(2);
     CountDownLatch ready = new CountDownLatch(2);
     CountDownLatch start = new CountDownLatch(1);
 
     try {
-      Future<Boolean> first = executorService.submit(() -> executeAfterStartSignal(request, ready, start));
+      Future<Boolean> first =
+          executorService.submit(() -> executeAfterStartSignal(request, ready, start));
       Future<Boolean> second =
           executorService.submit(() -> executeAfterStartSignal(request, ready, start));
 

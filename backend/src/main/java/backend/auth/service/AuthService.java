@@ -8,6 +8,7 @@ import backend.exception.BadRequestException;
 import backend.user.domain.User;
 import backend.user.repository.UserRepository;
 import java.time.LocalDateTime;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -57,13 +58,15 @@ public class AuthService {
     User user = userRepository.getUserByProviderUserId(verifiedAppleUserInfo.getSub());
 
     if (user == null) {
+      UUID appAccountToken = UUID.randomUUID();
       user =
           User.forAppleSignUp(
               verifiedAppleUserInfo.getEmail(),
               "apple",
               verifiedAppleUserInfo.getSub(),
               "v1",
-              LocalDateTime.now());
+              LocalDateTime.now(),
+              appAccountToken);
       long userId = userRepository.createUserWithAppleId(user);
       String token = jwtService.generateToken(userId);
       return token;

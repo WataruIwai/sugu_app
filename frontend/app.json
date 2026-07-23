@@ -16,9 +16,19 @@
       "usesAppleSignIn": true,
       "bundleIdentifier": "com.sugu.ios",
       "buildNumber": "3",
+      "entitlements": {
+        "com.apple.security.application-groups": [
+          "group.com.sugu.ios"
+        ]
+      },
       "infoPlist": {
         "CFBundleDisplayName": "Sugu",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocalNetworkUsageDescription": "開発中にMac上の開発サーバーへ接続するため、ローカルネットワークを使用します。",
+        "NSBonjourServices": [
+          "_expo._tcp",
+          "_react-native-metro._tcp"
+        ]
       }
     },
     "web": {
@@ -39,7 +49,8 @@
         {
           "userTrackingPermission": "許可することで、より関連性の高い広告を表示できるようになります。"
         }
-      ]
+      ],
+      "expo-iap"
     ],
     "extra": {
       "eas": {

@@ -48,6 +48,7 @@ export const WordDetailPage = ({
 
   return (
     <ScreenLayout
+      scrollable={false}
       fixedBottom={
         <SearchTriggerButton activeOpacity={0.84} onPress={onOpenSearch}>
           <Feather name="search" size={22} color="#4a4a4a" />
@@ -60,28 +61,32 @@ export const WordDetailPage = ({
         </BackButton>
       </TopRow>
 
-      <WordTitle>{word.word}</WordTitle>
-      <PronunciationButton
-        activeOpacity={0.82}
-        onPress={handlePronounceWord}
-      >
-        <Feather name="volume-2" size={20} color="#222222" />
-        <PronunciationButtonText>発音を聞く</PronunciationButtonText>
-      </PronunciationButton>
+      <DetailHeaderBlock>
+        <WordTitle>{word.word}</WordTitle>
+        <PronunciationButton
+          activeOpacity={0.82}
+          onPress={handlePronounceWord}
+        >
+          <Feather name="volume-2" size={20} color="#222222" />
+          <PronunciationButtonText>発音を聞く</PronunciationButtonText>
+        </PronunciationButton>
+      </DetailHeaderBlock>
 
-      {word.entries.length > 0 ? (
-        <Section>
-          {word.entries.map((entry, index) => (
-            <EntryCard key={`${entry.meaning_en}-${index}`}>
-              <EntryMeaning>{entry.meaning_en}</EntryMeaning>
-              <EntryJapanese>{entry.meaning_ja}</EntryJapanese>
-              <EntryExample>{entry.example}</EntryExample>
-            </EntryCard>
-          ))}
-        </Section>
-      ) : (
-        <SectionBody>No detail registered.</SectionBody>
-      )}
+      <DetailScrollArea showsVerticalScrollIndicator={false}>
+        {word.entries.length > 0 ? (
+          <Section>
+            {word.entries.map((entry, index) => (
+              <EntryCard key={`${entry.meaning_en}-${index}`}>
+                <EntryMeaning>{entry.meaning_en}</EntryMeaning>
+                <EntryJapanese>{entry.meaning_ja}</EntryJapanese>
+                <EntryExample>{entry.example}</EntryExample>
+              </EntryCard>
+            ))}
+          </Section>
+        ) : (
+          <SectionBody>No detail registered.</SectionBody>
+        )}
+      </DetailScrollArea>
     </ScreenLayout>
   );
 };
@@ -122,7 +127,6 @@ const PronunciationButton = styled.TouchableOpacity`
   background-color: #f3f3f3;
   flex-direction: row;
   align-items: center;
-  margin-bottom: 22px;
 `;
 
 const PronunciationButtonText = styled.Text`
@@ -131,6 +135,22 @@ const PronunciationButtonText = styled.Text`
   font-size: 13px;
   line-height: 18px;
   font-weight: 700;
+`;
+
+const DetailHeaderBlock = styled.View`
+  margin-bottom: 14px;
+`;
+
+const DetailScrollArea = styled.ScrollView.attrs({
+  bounces: false,
+  contentContainerStyle: {
+    flexGrow: 1,
+    paddingBottom: 104,
+  },
+  alwaysBounceVertical: false,
+  overScrollMode: "never",
+})`
+  flex: 1;
 `;
 
 const Section = styled.View`
