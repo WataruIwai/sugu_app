@@ -4,6 +4,7 @@ import backend.exception.NotFoundException;
 import backend.subscription.util.DetermineStatus;
 import backend.user.domain.User;
 import com.apple.itunes.storekit.model.JWSTransactionDecodedPayload;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -82,8 +83,8 @@ public class SubscriptionRepository {
         .param("originalTransactionId", transaction.getOriginalTransactionId())
         .param("latestTransactionId", transaction.getTransactionId())
         .param("productId", transaction.getProductId())
-        .param("expiresAt", expiresAt)
-        .param("revocationDate", revocationDate)
+        .param("expiresAt", Timestamp.from(expiresAt))
+        .param("revocationDate", revocationDate == null ? null : Timestamp.from(revocationDate))
         .param("status", status)
         .update();
   }

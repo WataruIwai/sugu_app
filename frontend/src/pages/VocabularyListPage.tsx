@@ -91,7 +91,7 @@ export const VocabularyListPage = ({
         <ScreenLayout
             contentFillsViewport
             horizontalPadding={20}
-            fixedTopOffset={0}
+            fixedTopOffset={40}
             scrollable={false}
             fixedTop={
                 <FixedMenuRow $hasBadge={isPro}>
@@ -311,13 +311,15 @@ const FixedMenuRow = styled.View<{ $hasBadge: boolean }>`
     justify-content: ${(props) =>
         props.$hasBadge ? "space-between" : "flex-end"};
     align-items: center;
+    padding-right: 14px;
 `;
 
 const MenuButton = styled.TouchableOpacity`
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
     align-items: flex-end;
     justify-content: center;
+    transform: translateY(12px);
 `;
 
 const ProBadgeText = styled.Text`

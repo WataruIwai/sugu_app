@@ -15,7 +15,9 @@ import backend.dictionary.util.SearchContext;
 import backend.exception.TooManyRequestsException;
 import backend.external.OpenAiClient;
 import backend.external.dto.OpenAiResponse;
+import backend.subscription.repository.SubscriptionRepository;
 import backend.usage.domain.GuestUsageCount;
+import backend.usage.domain.UserUsageCount;
 import backend.usage.repository.UsageRepository;
 import java.time.LocalDate;
 import java.util.List;
@@ -32,11 +34,16 @@ class DictionaryServiceTest {
   @Mock OpenAiClient openAiClient;
   @Mock UsageRepository usageRepository;
   @Mock DictionaryWriteService dictionaryWriteService;
+  @Mock SubscriptionRepository subscriptionRepository;
 
   @InjectMocks DictionaryService dictionaryService;
 
   private GuestUsageCount guestUsage(String guestId) {
     return new GuestUsageCount(1L, guestId, LocalDate.now(), 3, 0, 1, 0);
+  }
+
+  private UserUsageCount userUsage(long userId) {
+    return new UserUsageCount(1L, userId, LocalDate.now(), 10, 0, 1, 0);
   }
 
   private OpenAiResponse successOpenAiResponse(String word) {
@@ -150,6 +157,34 @@ class DictionaryServiceTest {
 
     verify(usageRepository).consumeGuestUsage(usage);
     verify(usageRepository, never()).consumeGuestBonusUsage(usage);
+    verify(openAiClient).fetchWordData("apple");
+    verify(dictionaryWriteService).createWordDataWithEntries("apple", openAiResponse.getEntries());
+  }
+
+  @Test
+  void proUserSearchDoesNotConsumeUsage() {
+    // Arrange
+    long userId = 1L;
+    SearchContext searchContext = SearchContext.forUser(userId);
+    UserUsageCount usage = userUsage(userId);
+    OpenAiResponse openAiResponse = successOpenAiResponse("apple");
+
+    when(usageRepository.getUserUsage(userId)).thenReturn(Optional.of(usage));
+    when(subscriptionRepository.isActive(userId)).thenReturn(true);
+    when(dictionaryRepository.queryWordData("apple")).thenReturn(Optional.empty());
+    when(openAiClient.fetchWordData("apple")).thenReturn(openAiResponse);
+
+    // Act
+    WordResponse response = dictionaryService.getWordData("apple", searchContext);
+
+    // Assert
+    assertEquals("SUCCESS", response.getStatus());
+    assertEquals("apple", response.getWord());
+
+    verify(usageRepository, never()).consumeUserUsage(usage);
+    verify(usageRepository, never()).consumeUserBonusUsage(usage);
+    verify(usageRepository, never()).rollbackUserUsage(usage);
+    verify(usageRepository, never()).rollbackUserBonusUsage(usage);
     verify(openAiClient).fetchWordData("apple");
     verify(dictionaryWriteService).createWordDataWithEntries("apple", openAiResponse.getEntries());
   }

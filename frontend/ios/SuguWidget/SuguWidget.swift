@@ -98,7 +98,7 @@ struct SuguWidgetView: View {
     private func content(for word: WidgetWord) -> some View {
         switch family {
         case .systemMedium:
-            VStack(alignment: .leading, spacing: 7) {
+            VStack(alignment: .leading, spacing: 10) {
                 Text(word.term)
                     .font(.custom("Helvetica", size: 27).weight(.bold))
                     .foregroundStyle(Color(hex: 0x111111))
@@ -107,12 +107,14 @@ struct SuguWidgetView: View {
                 Text(japaneseMeaning(for: word))
                     .font(.custom("Helvetica", size: 15).weight(.semibold))
                     .foregroundStyle(Color(hex: 0x111111))
+                    .lineSpacing(3)
                     .lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 if !word.primaryMeaningEn.isEmpty {
                     Text(word.primaryMeaningEn)
                         .font(.custom("Helvetica", size: 13).weight(.semibold))
                         .foregroundStyle(Color(hex: 0x6F6F73))
+                        .padding(.top, 2)
                         .lineLimit(1)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -150,6 +152,7 @@ struct SuguWidgetView: View {
                 Text(japaneseMeaning(for: word))
                     .font(.custom("Helvetica", size: 14).weight(.semibold))
                     .foregroundStyle(Color(hex: 0x111111))
+                    .lineSpacing(3)
                     .lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 Spacer(minLength: 0)
@@ -182,6 +185,7 @@ struct SuguWidgetView: View {
                 Text("単語を保存すると\nここに表示されます")
                     .font(.custom("Helvetica", size: 14).weight(.semibold))
                     .foregroundStyle(Color(hex: 0x8A8A8E))
+                    .lineSpacing(3)
                     .lineLimit(2)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

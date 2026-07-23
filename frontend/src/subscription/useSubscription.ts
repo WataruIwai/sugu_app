@@ -104,6 +104,11 @@ const verifySubscriptionPurchase = async (purchase: unknown) => {
     );
 
     if (!response.ok) {
+        const responseText = await response.text();
+        console.log("Sugu Pro purchase verification failed:", {
+            status: response.status,
+            body: responseText,
+        });
         throw new Error("購入情報の確認に失敗しました。");
     }
 };
