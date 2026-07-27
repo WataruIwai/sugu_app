@@ -17,24 +17,37 @@ import org.springframework.context.annotation.Configuration;
 public class AppStoreServerApiConfig {
 
   @Bean
-  public AppStoreServerAPIClient appStoreServerAPIClient(
+  public AppStoreServerServices appStoreServerServices(
       @Value("${apple.store.private-key-path}") String privateKeyPath,
       @Value("${apple.store.key-id}") String keyId,
       @Value("${apple.store.issuer-id}") String issuerId,
-      @Value("${apple.store.bundle-id}") String bundleId,
-      @Value("${apple.store.environment:SANDBOX}") Environment environment)
-      throws IOException {
-    String privateKey = Files.readString(Path.of(privateKeyPath));
-    return new AppStoreServerAPIClient(privateKey, keyId, issuerId, bundleId, environment);
-  }
-
-  @Bean
-  public SignedDataVerifier signedDataVerifier(
       @Value("${apple.store.bundle-id}") String bundleId,
       @Value("${apple.store.environment:SANDBOX}") Environment environment,
       @Value("${apple.store.app-apple-id:}") String appAppleId,
       @Value("${apple.store.root-certificate-paths:}") String rootCertificatePaths)
       throws IOException {
+    String privateKey = Files.readString(Path.of(privateKeyPath));
+    Long parsedAppAppleId = appAppleId.isBlank() ? null : Long.valueOf(appAppleId);
+    return new AppStoreServerServices(
+        environment,
+        new AppStoreServerAPIClient(
+            privateKey, keyId, issuerId, bundleId, Environment.PRODUCTION),
+        new SignedDataVerifier(
+            rootCertificates(rootCertificatePaths),
+            bundleId,
+            parsedAppAppleId,
+            Environment.PRODUCTION,
+            true),
+        new AppStoreServerAPIClient(privateKey, keyId, issuerId, bundleId, Environment.SANDBOX),
+        new SignedDataVerifier(
+            rootCertificates(rootCertificatePaths),
+            bundleId,
+            parsedAppAppleId,
+            Environment.SANDBOX,
+            true));
+  }
+
+  private Set<InputStream> rootCertificates(String rootCertificatePaths) throws IOException {
     Set<InputStream> rootCertificates = new HashSet<>();
     for (String rootCertificatePath : rootCertificatePaths.split(",")) {
       String trimmedPath = rootCertificatePath.trim();
@@ -42,14 +55,13 @@ public class AppStoreServerApiConfig {
         rootCertificates.add(Files.newInputStream(Path.of(trimmedPath)));
       }
     }
-
-    Long parsedAppAppleId = appAppleId.isBlank() ? null : Long.valueOf(appAppleId);
-    /*
-     *
-     *environmentの本番ではPRODUCTIONにして環境変数として登録する必要がある
-     *
-     *
-     */
-    return new SignedDataVerifier(rootCertificates, bundleId, parsedAppAppleId, environment, true);
+    return rootCertificates;
   }
+
+  public record AppStoreServerServices(
+      Environment preferredEnvironment,
+      AppStoreServerAPIClient productionClient,
+      SignedDataVerifier productionVerifier,
+      AppStoreServerAPIClient sandboxClient,
+      SignedDataVerifier sandboxVerifier) {}
 }
