@@ -22,6 +22,7 @@ usage:
 apple:
     signin:
         audience: ${EXPO_PUBLIC_IOS_BUNDLE_ID}
+        web-redirect-uri: ${APPLE_SIGNIN_WEB_REDIRECT_URI}
     store:
         private-key-path: ${APPLE_STORE_PRIVATE_KEY}
         key-id: ${APPLE_KEY_ID}

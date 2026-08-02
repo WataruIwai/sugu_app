@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "Sugu",
+  "version": "0.1.0",
+  "description": "Search and save words to Sugu from any web page.",
+  "action": {
+    "default_title": "Sugu"
+  },
+  "commands": {
+    "toggle-panel": {
+      "suggested_key": {
+        "default": "Alt+S",
+        "mac": "Command+Shift+S"
+      },
+      "description": "Suguの表示/非表示を切り替える"
+    }
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["content.css"]
+    }
+  ],
+  "permissions": ["activeTab", "contextMenus", "scripting", "storage"],
+  "host_permissions": ["https://vocab-app-7lb5.onrender.com/*"],
+  "web_accessible_resources": [
+    {
+      "resources": ["assets/sugu-logo.svg"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

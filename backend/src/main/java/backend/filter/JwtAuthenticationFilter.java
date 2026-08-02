@@ -59,6 +59,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     } else {
       SecurityContextHolder.clearContext();
       response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+      response.setCharacterEncoding("UTF-8");
       response.setContentType("application/json");
       response.getWriter().write("{\"message\":\"認証に失敗しました\"}");
       return;
@@ -68,7 +69,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {
     String path = request.getRequestURI();
-    return path.equals("/api/v1/auth/apple") || path.equals("/auth/apple") || path.equals("/api/v1/subscription/notifications/apple");
+    return path.equals("/api/v1/auth/apple")
+      || path.equals("/auth/apple")
+      || path.equals("/api/v1/subscription/notifications/apple")
+      || path.equals("/api/v1/auth/apple/web/start")
+      || path.equals("/auth/apple/web/start")
+      || path.equals("/api/v1/auth/apple/web/callback")
+      || path.equals("/auth/apple/web/callback");
   }
 
   private boolean isGuestAllowedPath(HttpServletRequest request) {
