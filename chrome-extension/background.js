@@ -1,6 +1,11 @@
 const API_BASE_URL = "https://sugu-app-dev.onrender.com";
 const TOKEN_KEY = "suguAuthToken";
 const GUEST_ID_KEY = "suguGuestId";
+const AUTH_ORIGIN_TAB_KEY = "suguAppleAuthOriginTabId";
+const AUTH_CALLBACK_PATHS = [
+  "/api/v1/auth/apple/web/callback",
+  "/auth/apple/web/callback"
+];
 const SUGU_PRO_URL = "https://apps.apple.com/search?term=Sugu";
 const ERROR_MESSAGE_BY_CODE = {
   BAD_REQUEST: "入力内容に誤りがあります",
@@ -83,7 +88,14 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 
   if (message?.type === "SUGU_START_APPLE_AUTH") {
-    startAppleAuth()
+    startAppleAuth(_sender.tab?.id)
+      .then(() => sendResponse({ ok: true }))
+      .catch((error) => sendResponse(toErrorResponse(error)));
+    return true;
+  }
+
+  if (message?.type === "SUGU_COMPLETE_APPLE_AUTH") {
+    completeAppleAuth(message.token, _sender.tab?.id)
       .then(() => sendResponse({ ok: true }))
       .catch((error) => sendResponse(toErrorResponse(error)));
     return true;
@@ -173,6 +185,14 @@ async function getToken() {
   return typeof values[TOKEN_KEY] === "string" ? values[TOKEN_KEY] : "";
 }
 
+async function setToken(token) {
+  if (!isJwtLikeToken(token)) {
+    throw new Error("Appleログインの認証情報を取得できませんでした。");
+  }
+
+  await chrome.storage.local.set({ [TOKEN_KEY]: token });
+}
+
 async function getOrCreateGuestId() {
   const existingGuestId = await getGuestId();
   if (existingGuestId) {
@@ -247,8 +267,62 @@ async function openExternal(url) {
   await chrome.tabs.create({ url: targetUrl });
 }
 
-async function startAppleAuth() {
+async function startAppleAuth(originTabId) {
+  if (Number.isInteger(originTabId)) {
+    await chrome.storage.local.set({ [AUTH_ORIGIN_TAB_KEY]: originTabId });
+  } else {
+    await chrome.storage.local.remove(AUTH_ORIGIN_TAB_KEY);
+  }
+
   await chrome.tabs.create({ url: `${API_BASE_URL}/api/v1/auth/apple/web/start` });
+}
+
+async function completeAppleAuth(token, authTabId) {
+  await setToken(token);
+
+  const originTabId = await getAuthOriginTabId();
+  await chrome.storage.local.remove(AUTH_ORIGIN_TAB_KEY);
+
+  if (originTabId) {
+    await sendMessageToTab(originTabId, { type: "SUGU_AUTH_COMPLETED" });
+    await chrome.tabs.update(originTabId, { active: true }).catch(() => {});
+  }
+
+  if (authTabId && authTabId !== originTabId && isAppleAuthCallbackUrl(await getTabUrl(authTabId))) {
+    await chrome.tabs.remove(authTabId).catch(() => {});
+  }
+}
+
+async function getAuthOriginTabId() {
+  const values = await chrome.storage.local.get(AUTH_ORIGIN_TAB_KEY);
+  const tabId = values[AUTH_ORIGIN_TAB_KEY];
+  return Number.isInteger(tabId) ? tabId : null;
+}
+
+async function getTabUrl(tabId) {
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    return tab.url ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function isAppleAuthCallbackUrl(url) {
+  if (typeof url !== "string" || !url.startsWith(API_BASE_URL)) {
+    return false;
+  }
+
+  try {
+    const parsed = new URL(url);
+    return AUTH_CALLBACK_PATHS.includes(parsed.pathname);
+  } catch {
+    return false;
+  }
+}
+
+function isJwtLikeToken(token) {
+  return typeof token === "string" && token.trim().split(".").length === 3;
 }
 
 function togglePanel(tab) {

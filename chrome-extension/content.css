@@ -382,6 +382,25 @@ html.sugu-page-docked body {
   background: var(--sugu-color-surface);
 }
 
+.sugu-inline-login {
+  margin-top: 10px;
+  margin-bottom: 26px;
+}
+
+.sugu-inline-login-button {
+  width: 100%;
+  height: 42px;
+  border: 1px solid var(--sugu-color-border);
+  border-radius: 21px;
+  background: var(--sugu-color-surface);
+  color: var(--sugu-color-text);
+}
+
+#sugu-extension-root.sugu-theme-dark .sugu-inline-login-button {
+  background: var(--sugu-color-surface);
+  color: var(--sugu-color-text);
+}
+
 .sugu-status {
   min-height: 20px;
   margin-top: 10px;

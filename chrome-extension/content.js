@@ -18,6 +18,10 @@ const YOUTUBE_DOCKED_CLASS = "sugu-youtube-docked";
 const YOUTUBE_FULLSCREEN_DOCKED_CLASS = "sugu-youtube-fullscreen-docked";
 const DISNEY_DOCKED_CLASS = "sugu-disney-docked";
 const PRIME_DOCKED_CLASS = "sugu-prime-docked";
+const AUTH_CALLBACK_PATHS = [
+  "/api/v1/auth/apple/web/callback",
+  "/auth/apple/web/callback"
+];
 
 let originalBodyStyles = null;
 let currentFullscreenHost = null;
@@ -51,11 +55,19 @@ const state = {
   lastSearchError: ""
 };
 
-init();
+if (isAppleAuthCallbackPage()) {
+  void completeAppleAuthFromCallbackPage();
+} else {
+  init();
+}
 
 chrome.runtime.onMessage.addListener((message) => {
   if (message?.type === "SUGU_TOGGLE_PANEL") {
     setCollapsed(!state.collapsed);
+  }
+
+  if (message?.type === "SUGU_AUTH_COMPLETED") {
+    handleAuthCompleted();
   }
 
   if (message?.type === "SUGU_SEARCH_SELECTION") {
@@ -70,6 +82,56 @@ chrome.runtime.onMessage.addListener((message) => {
     }
   }
 });
+
+async function completeAppleAuthFromCallbackPage() {
+  const token = extractJwtFromDocument();
+
+  if (!token) {
+    renderAuthCallbackMessage("ログインに失敗しました。もう一度お試しください。");
+    return;
+  }
+
+  const response = await sendMessage({ type: "SUGU_COMPLETE_APPLE_AUTH", token });
+
+  if (!response.ok) {
+    renderAuthCallbackMessage(response.error || "ログインに失敗しました。もう一度お試しください。");
+    return;
+  }
+
+  renderAuthCallbackMessage("ログインが完了しました。Suguに戻ります。");
+}
+
+function isAppleAuthCallbackPage() {
+  return AUTH_CALLBACK_PATHS.includes(window.location.pathname);
+}
+
+function extractJwtFromDocument() {
+  const text = document.body?.innerText?.trim() ?? "";
+  const match = text.match(/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/);
+  return match?.[0] ?? "";
+}
+
+function renderAuthCallbackMessage(message) {
+  document.documentElement.style.background = "#2f2f2f";
+  document.body.style.margin = "0";
+  document.body.style.minHeight = "100vh";
+  document.body.style.display = "grid";
+  document.body.style.placeItems = "center";
+  document.body.style.background = "#2f2f2f";
+  document.body.style.color = "#f7f7f7";
+  document.body.style.fontFamily =
+      '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  document.body.textContent = "";
+  document.body.append(
+    createElement("div", {
+      attributes: {
+        style:
+            "font-size: 18px; font-weight: 700; padding: 24px; text-align: center;"
+      },
+      text: message
+    })
+  );
+}
 
 function init() {
   if (document.getElementById(ROOT_ID)) {
@@ -257,6 +319,10 @@ function render() {
     return;
   }
 
+  if (!state.hasToken) {
+    body.append(renderInlineLoginAction());
+  }
+
   const searchRow = createElement("div", { className: "sugu-search-row" });
   const input = createElement("input", {
     className: "sugu-input",
@@ -390,6 +456,19 @@ function renderAuthInfoView({ title, description, primaryText, primaryAction, fo
       guestButton,
       createElement("div", { className: "sugu-simple-footnote", text: footnote })
     ]
+  });
+}
+
+function renderInlineLoginAction() {
+  const loginButton = createElement("button", {
+    className: "sugu-button sugu-inline-login-button",
+    text: "Sign in with Appleでログイン"
+  });
+  loginButton.addEventListener("click", () => void startAppleAuth());
+
+  return createElement("div", {
+    className: "sugu-inline-login",
+    children: [loginButton]
   });
 }
 
@@ -653,6 +732,14 @@ async function startAppleAuth() {
   if (!response.ok) {
     setStatus(response.error, "error");
   }
+}
+
+function handleAuthCompleted() {
+  state.hasToken = true;
+  state.appView = VIEW_SEARCH;
+  state.lastSearchError = "";
+  render();
+  setStatus("ログインしました。", "success");
 }
 
 async function openProLink() {
