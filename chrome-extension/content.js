@@ -55,7 +55,9 @@ const state = {
   lastSearchError: ""
 };
 
-if (isAppleAuthCallbackPage()) {
+if (isAppleAuthPage()) {
+  // Do not overlay Sugu on Apple's sign-in UI.
+} else if (isAppleAuthCallbackPage()) {
   void completeAppleAuthFromCallbackPage();
 } else {
   init();
@@ -103,6 +105,10 @@ async function completeAppleAuthFromCallbackPage() {
 
 function isAppleAuthCallbackPage() {
   return AUTH_CALLBACK_PATHS.includes(window.location.pathname);
+}
+
+function isAppleAuthPage() {
+  return window.location.hostname === "appleid.apple.com";
 }
 
 function extractJwtFromDocument() {
