@@ -56,7 +56,7 @@ const state = {
 };
 
 if (isAppleAuthPage()) {
-  // Do not overlay Sugu on Apple's sign-in UI.
+  cleanupSuguFromPage();
 } else if (isAppleAuthCallbackPage()) {
   void completeAppleAuthFromCallbackPage();
 } else {
@@ -109,6 +109,30 @@ function isAppleAuthCallbackPage() {
 
 function isAppleAuthPage() {
   return window.location.hostname === "appleid.apple.com";
+}
+
+function cleanupSuguFromPage() {
+  document.getElementById(ROOT_ID)?.remove();
+  document.documentElement.classList.remove(
+    PAGE_DOCKED_CLASS,
+    FULLSCREEN_DOCKED_CLASS,
+    YOUTUBE_DOCKED_CLASS,
+    YOUTUBE_FULLSCREEN_DOCKED_CLASS,
+    DISNEY_DOCKED_CLASS,
+    PRIME_DOCKED_CLASS
+  );
+  document.documentElement.style.removeProperty("--sugu-docked-width");
+
+  if (document.body) {
+    if (originalBodyStyles) {
+      document.body.style.marginRight = originalBodyStyles.marginRight;
+      document.body.style.maxWidth = originalBodyStyles.maxWidth;
+      originalBodyStyles = null;
+    } else {
+      document.body.style.marginRight = "";
+      document.body.style.maxWidth = "";
+    }
+  }
 }
 
 function extractJwtFromDocument() {
