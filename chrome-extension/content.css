@@ -95,6 +95,10 @@ html.sugu-disney-docked {
   overflow: hidden !important;
 }
 
+html.sugu-prime-docked {
+  overflow: hidden !important;
+}
+
 html.sugu-page-docked {
   overflow-x: hidden !important;
 }

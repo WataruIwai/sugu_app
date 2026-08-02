@@ -17,12 +17,18 @@ const FULLSCREEN_DOCKED_CLASS = "sugu-fullscreen-docked";
 const YOUTUBE_DOCKED_CLASS = "sugu-youtube-docked";
 const YOUTUBE_FULLSCREEN_DOCKED_CLASS = "sugu-youtube-fullscreen-docked";
 const DISNEY_DOCKED_CLASS = "sugu-disney-docked";
+const PRIME_DOCKED_CLASS = "sugu-prime-docked";
 
 let originalBodyStyles = null;
 let currentFullscreenHost = null;
 let currentDisneyHost = null;
 let originalDisneyStyles = null;
 let disneySyncRetryTimer = null;
+let currentPrimeHost = null;
+let originalPrimeStyles = null;
+let currentPrimeOverlayHosts = [];
+let originalPrimeOverlayStyles = new Map();
+let primeSyncRetryTimer = null;
 let currentYouTubeHosts = [];
 let originalYouTubeStyles = new Map();
 let youtubeSyncRetryTimer = null;
@@ -106,6 +112,7 @@ async function restoreSettings() {
   state.collapsed = canUseSearch && stored[COLLAPSED_KEY] === true;
   render();
   scheduleDisneyLayoutRetries();
+  schedulePrimeLayoutRetries();
   scheduleYouTubeDockedLayoutRetries();
 }
 
@@ -125,6 +132,7 @@ function render() {
   syncPageLayout();
   syncFullscreenLayout();
   syncDisneyLayout();
+  syncPrimeLayout();
   syncYouTubeLayout();
 
   if (state.layoutMode === LAYOUT_DOCKED && state.collapsed) {
@@ -691,6 +699,7 @@ async function toggleLayoutMode() {
   await chrome.storage.local.set({ [LAYOUT_KEY]: state.layoutMode });
   render();
   scheduleDisneyLayoutRetries();
+  schedulePrimeLayoutRetries();
   scheduleYouTubeDockedLayoutRetries();
 }
 
@@ -718,22 +727,32 @@ function setCollapsed(collapsed) {
   void chrome.storage.local.set({ [COLLAPSED_KEY]: collapsed });
   render();
 
-  if (!changed || !isYouTubePage()) {
+  if (!changed) {
     return;
   }
 
-  if (state.collapsed) {
+  if (isPrimeVideoPage()) {
+    if (!state.collapsed) {
+      schedulePrimeLayoutRetries();
+    }
+    return;
+  }
+
+  if (isYouTubePage()) {
+    if (state.collapsed) {
+      scheduleYouTubeResize();
+      return;
+    }
+
+    scheduleYouTubeDockedLayoutRetries();
     scheduleYouTubeResize();
-    return;
   }
-
-  scheduleYouTubeDockedLayoutRetries();
-  scheduleYouTubeResize();
 }
 
 function handleFullscreenChange() {
   ensureRootMount();
   render();
+  schedulePrimeLayoutRetries();
   scheduleYouTubeDockedLayoutRetries();
 }
 
@@ -761,6 +780,7 @@ function syncPageLayout() {
     state.layoutMode === LAYOUT_DOCKED &&
     !state.collapsed &&
     !getFullscreenElement() &&
+    !isPrimeVideoPage() &&
     !isYouTubePage();
   document.documentElement.style.setProperty("--sugu-docked-width", DOCKED_WIDTH_CSS);
   document.documentElement.classList.toggle(PAGE_DOCKED_CLASS, shouldDockPage);
@@ -791,6 +811,7 @@ function syncPageLayout() {
 
   if (!shouldDockPage) {
     resetDisneyLayout();
+    resetPrimeLayout();
     resetYouTubeLayout();
     if (wasDockedPage && isYouTubePage()) {
       scheduleYouTubeResize();
@@ -804,6 +825,7 @@ function syncFullscreenLayout() {
     fullscreenElement &&
     state.layoutMode === LAYOUT_DOCKED &&
     !state.collapsed &&
+    !isPrimeVideoPage() &&
     !isYouTubePage();
 
   if (currentFullscreenHost && currentFullscreenHost !== fullscreenElement) {
@@ -1130,6 +1152,200 @@ function syncDisneyLayout() {
   currentDisneyHost = host;
 }
 
+function syncPrimeLayout() {
+  const shouldDockPrime = shouldDockPrimeLayout();
+
+  document.documentElement.classList.toggle(PRIME_DOCKED_CLASS, shouldDockPrime);
+  if (!shouldDockPrime) {
+    resetPrimeLayout();
+    return;
+  }
+
+  document.documentElement.style.setProperty("--sugu-docked-width", DOCKED_WIDTH_CSS);
+
+  const host = findPrimeVideoViewportHost();
+  if (!host) {
+    schedulePrimeLayoutRetries();
+    return;
+  }
+
+  if (currentPrimeHost && currentPrimeHost !== host) {
+    resetPrimeLayout();
+  }
+
+  if (!originalPrimeStyles) {
+    originalPrimeStyles = {
+      width: host.style.width,
+      maxWidth: host.style.maxWidth,
+      height: host.style.height,
+      right: host.style.right,
+      left: host.style.left,
+      top: host.style.top,
+      boxSizing: host.style.boxSizing,
+      overflow: host.style.overflow,
+      position: host.style.position
+    };
+  }
+
+  host.style.width = `calc(100vw - ${DOCKED_WIDTH_CSS})`;
+  host.style.maxWidth = `calc(100vw - ${DOCKED_WIDTH_CSS})`;
+  if (getFullscreenElement()) {
+    host.style.height = "100vh";
+    host.style.left = "0";
+    host.style.top = "0";
+    host.style.position = host === getFullscreenElement() ? "relative" : host.style.position;
+  }
+  host.style.right = DOCKED_WIDTH_CSS;
+  host.style.boxSizing = "border-box";
+  host.style.overflow = "hidden";
+  currentPrimeHost = host;
+
+  syncPrimeOverlayLayout(host);
+}
+
+function resetPrimeLayout() {
+  document.documentElement.classList.remove(PRIME_DOCKED_CLASS);
+  clearPrimeLayoutRetries();
+  restorePrimeOverlayStyles();
+
+  if (!currentPrimeHost || !originalPrimeStyles) {
+    currentPrimeHost = null;
+    originalPrimeStyles = null;
+    return;
+  }
+
+  currentPrimeHost.style.width = originalPrimeStyles.width;
+  currentPrimeHost.style.maxWidth = originalPrimeStyles.maxWidth;
+  currentPrimeHost.style.height = originalPrimeStyles.height;
+  currentPrimeHost.style.right = originalPrimeStyles.right;
+  currentPrimeHost.style.left = originalPrimeStyles.left;
+  currentPrimeHost.style.top = originalPrimeStyles.top;
+  currentPrimeHost.style.boxSizing = originalPrimeStyles.boxSizing;
+  currentPrimeHost.style.overflow = originalPrimeStyles.overflow;
+  currentPrimeHost.style.position = originalPrimeStyles.position;
+  currentPrimeHost = null;
+  originalPrimeStyles = null;
+}
+
+function syncPrimeOverlayLayout(videoHost) {
+  if (!getFullscreenElement()) {
+    restorePrimeOverlayStyles();
+    return;
+  }
+
+  const overlayHosts = findPrimeFullscreenOverlayHosts(videoHost);
+  const scrubberHosts = findPrimeFullscreenScrubberHosts();
+  const hosts = uniqueElements([...overlayHosts, ...scrubberHosts]);
+  restoreRemovedPrimeOverlayHosts(hosts);
+
+  for (const overlayHost of hosts) {
+    rememberPrimeOverlayStyles(overlayHost);
+    const width = isPrimeScrubberElement(overlayHost)
+      ? `calc(100vw - ${DOCKED_WIDTH_CSS} - 24px)`
+      : `calc(100vw - ${DOCKED_WIDTH_CSS})`;
+    overlayHost.style.setProperty("width", width, "important");
+    overlayHost.style.setProperty("max-width", width, "important");
+    overlayHost.style.setProperty("left", "0", "important");
+    overlayHost.style.setProperty("right", DOCKED_WIDTH_CSS, "important");
+    overlayHost.style.setProperty("box-sizing", "border-box", "important");
+    overlayHost.style.setProperty("min-width", "0", "important");
+    overlayHost.style.setProperty("overflow", "hidden", "important");
+  }
+
+  currentPrimeOverlayHosts = hosts;
+}
+
+function isPrimeScrubberElement(element) {
+  const className = String(element.className ?? "");
+  return (
+    className.includes("f102imk2") ||
+    className.includes("f1jovyhs") ||
+    className.includes("fzu5eck") ||
+    className.includes("f19vh6ps") ||
+    className.includes("atvwebplayersdk-tick-mark-mask")
+  );
+}
+
+function rememberPrimeOverlayStyles(host) {
+  if (originalPrimeOverlayStyles.has(host)) {
+    return;
+  }
+
+  originalPrimeOverlayStyles.set(host, {
+    width: host.style.width,
+    maxWidth: host.style.maxWidth,
+    minWidth: host.style.minWidth,
+    left: host.style.left,
+    right: host.style.right,
+    boxSizing: host.style.boxSizing,
+    overflow: host.style.overflow
+  });
+}
+
+function restoreRemovedPrimeOverlayHosts(nextHosts) {
+  const nextHostSet = new Set(nextHosts);
+
+  for (const host of currentPrimeOverlayHosts) {
+    if (nextHostSet.has(host)) {
+      continue;
+    }
+
+    const styles = originalPrimeOverlayStyles.get(host);
+    if (!styles) {
+      continue;
+    }
+
+    host.style.width = styles.width;
+    host.style.maxWidth = styles.maxWidth;
+    host.style.minWidth = styles.minWidth;
+    host.style.left = styles.left;
+    host.style.right = styles.right;
+    host.style.boxSizing = styles.boxSizing;
+    host.style.overflow = styles.overflow;
+    originalPrimeOverlayStyles.delete(host);
+  }
+}
+
+function restorePrimeOverlayStyles() {
+  for (const [host, styles] of originalPrimeOverlayStyles.entries()) {
+    host.style.width = styles.width;
+    host.style.maxWidth = styles.maxWidth;
+    host.style.minWidth = styles.minWidth;
+    host.style.left = styles.left;
+    host.style.right = styles.right;
+    host.style.boxSizing = styles.boxSizing;
+    host.style.overflow = styles.overflow;
+  }
+
+  currentPrimeOverlayHosts = [];
+  originalPrimeOverlayStyles = new Map();
+}
+
+function schedulePrimeLayoutRetries() {
+  if (!shouldDockPrimeLayout() || primeSyncRetryTimer) {
+    return;
+  }
+
+  let attempts = 0;
+  primeSyncRetryTimer = window.setInterval(() => {
+    attempts += 1;
+    syncPrimeLayout();
+
+    if ((!getFullscreenElement() && currentPrimeHost) || attempts >= 40 || !shouldDockPrimeLayout()) {
+      clearPrimeLayoutRetries();
+    }
+  }, 250);
+}
+
+function clearPrimeLayoutRetries() {
+  if (!primeSyncRetryTimer) {
+    return;
+  }
+
+  window.clearInterval(primeSyncRetryTimer);
+  primeSyncRetryTimer = null;
+}
+
 function resetDisneyLayout() {
   document.documentElement.classList.remove(DISNEY_DOCKED_CLASS);
   clearDisneyLayoutRetries();
@@ -1183,12 +1399,131 @@ function shouldDockDisneyLayout() {
   );
 }
 
+function shouldDockPrimeLayout() {
+  return (
+    isPrimeVideoPage() &&
+    state.layoutMode === LAYOUT_DOCKED &&
+    !state.collapsed
+  );
+}
+
 function isDisneyPlusPage() {
   return location.hostname.includes("disneyplus.com");
 }
 
+function isPrimeVideoPage() {
+  return (
+    location.hostname.includes("primevideo.com") ||
+    (location.hostname.includes("amazon.") && location.pathname.includes("/gp/video/"))
+  );
+}
+
 function isYouTubePage() {
   return location.hostname.includes("youtube.com") || location.hostname.includes("youtu.be");
+}
+
+function findPrimeVideoViewportHost() {
+  const fullscreenElement = getFullscreenElement();
+  const scope = fullscreenElement || document;
+  const candidates = uniqueElements([
+    scope.querySelector?.("[data-testid='web-player']"),
+    scope.querySelector?.("[data-testid='dv-web-player']"),
+    scope.querySelector?.("[class*='webPlayer']"),
+    scope.querySelector?.("[class*='dv-player']"),
+    scope.querySelector?.("[class*='atvwebplayersdk']"),
+    findVideoViewportHost()
+  ]);
+
+  return candidates.find((candidate) => {
+    const rect = candidate.getBoundingClientRect();
+    return rect.width > window.innerWidth * 0.55 && rect.height > window.innerHeight * 0.45;
+  }) ?? null;
+}
+
+function findPrimeFullscreenOverlayHosts(videoHost) {
+  const fullscreenElement = getFullscreenElement();
+  if (!fullscreenElement) {
+    return [];
+  }
+
+  const candidateElements = [
+    ...fullscreenElement.children,
+    ...fullscreenElement.querySelectorAll(".fpqiyer.fh13lop"),
+    ...fullscreenElement.querySelectorAll("[class*='fpqiyer'][class*='fh13lop']"),
+    ...fullscreenElement.querySelectorAll("[class*='f102imk2']"),
+    ...fullscreenElement.querySelectorAll("[class*='f124tp54']"),
+    ...fullscreenElement.querySelectorAll("[class*='f3w9jrr']"),
+    ...fullscreenElement.querySelectorAll("[class*='f10ec4mb3']"),
+    ...fullscreenElement.querySelectorAll("[class*='f1oc4mb3']"),
+    ...fullscreenElement.querySelectorAll("[class*='f1jovyhs']"),
+    ...fullscreenElement.querySelectorAll("[class*='fzu5eck']"),
+    ...fullscreenElement.querySelectorAll("[class*='f19vh6ps']"),
+    ...fullscreenElement.querySelectorAll("[class*='atvwebplayersdk-']"),
+    ...fullscreenElement.querySelectorAll("[class*='controls'], [class*='Controls'], [class*='control'], [class*='Control']"),
+    ...fullscreenElement.querySelectorAll("[class*='overlay'], [class*='Overlay'], [class*='chrome'], [class*='Chrome']"),
+    ...fullscreenElement.querySelectorAll("[role='slider'], [aria-valuenow], button")
+  ];
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+
+  return uniqueElements(candidateElements.map((element) => {
+    let host = element;
+
+    while (host && host !== fullscreenElement) {
+      const rect = host.getBoundingClientRect();
+      const style = window.getComputedStyle(host);
+      const className = String(host.className ?? "");
+      const isPrimePlayerLayer =
+        className.includes("fpqiyer") ||
+        className.includes("fh13lop") ||
+        className.includes("f102imk2") ||
+        className.includes("f124tp54") ||
+        className.includes("f3w9jrr") ||
+        className.includes("f10ec4mb3") ||
+        className.includes("f1oc4mb3") ||
+        className.includes("f1jovyhs") ||
+        className.includes("fzu5eck") ||
+        className.includes("f19vh6ps") ||
+        className.includes("atvwebplayersdk-") ||
+        Boolean(host.querySelector?.("[class*='atvwebplayersdk-title-text']")) ||
+        Boolean(host.querySelector?.("[class*='atvwebplayersdk-tick-mark-mask']")) ||
+        Boolean(host.querySelector?.("[class*='atvwebplayersdk-playpause-button']"));
+      const isOverlayLayer =
+        host !== videoHost &&
+        !videoHost.contains(host) &&
+        (isPrimePlayerLayer || !host.contains(videoHost)) &&
+        host.id !== ROOT_ID &&
+        rect.width > viewportWidth * 0.55 &&
+        (isPrimePlayerLayer || rect.height < viewportHeight * 0.5) &&
+        (isPrimePlayerLayer || style.position === "absolute" || style.position === "fixed" || host.parentElement === fullscreenElement) &&
+        (isPrimePlayerLayer || rect.top < viewportHeight * 0.2 || rect.bottom > viewportHeight * 0.72);
+
+      if (isOverlayLayer) {
+        return host;
+      }
+
+      host = host.parentElement;
+    }
+
+    return null;
+  }));
+}
+
+function findPrimeFullscreenScrubberHosts() {
+  const fullscreenElement = getFullscreenElement();
+  if (!fullscreenElement) {
+    return [];
+  }
+
+  return uniqueElements([
+    ...fullscreenElement.querySelectorAll("[class*='atvwebplayersdk-tick-mark-mask']"),
+    ...fullscreenElement.querySelectorAll("[class*='f1jovyhs']"),
+    ...fullscreenElement.querySelectorAll("[class*='fzu5eck']"),
+    ...fullscreenElement.querySelectorAll("[class*='f19vh6ps']")
+  ].filter((element) => {
+    const rect = element.getBoundingClientRect();
+    return rect.width > window.innerWidth * 0.4;
+  }));
 }
 
 function findVideoViewportHost() {

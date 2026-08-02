@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://vocab-app-7lb5.onrender.com";
+const API_BASE_URL = "https://sugu-app-dev.onrender.com";
 const TOKEN_KEY = "suguAuthToken";
 const GUEST_ID_KEY = "suguGuestId";
 const SUGU_PRO_URL = "https://apps.apple.com/search?term=Sugu";

@@ -1,9 +1,14 @@
 package backend.auth.controller;
 
+import backend.auth.apple.AppleAuthSession;
+import backend.auth.apple.AppleAuthSessionStore;
 import backend.auth.dto.AppleAuthRequest;
 import backend.auth.service.AuthService;
+import backend.exception.UnauthorizedException;
 
 import java.net.URI;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -15,6 +20,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -24,12 +30,15 @@ public class AuthController {
   private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
   private final AuthService authService;
   private final String appleWebRedirectUri;
+  private final AppleAuthSessionStore appleAuthSessionStore;
 
   public AuthController(
       AuthService authService,
-      @Value("${apple.signin.web-redirect-uri}") String appleWebRedirectUri) {
+      @Value("${apple.signin.web-redirect-uri}") String appleWebRedirectUri,
+      AppleAuthSessionStore appleAuthSessionStore) {
     this.authService = authService;
     this.appleWebRedirectUri = appleWebRedirectUri;
+    this.appleAuthSessionStore = appleAuthSessionStore;
   }
 
   @PostMapping("/apple")
@@ -47,23 +56,43 @@ public class AuthController {
     String state = UUID.randomUUID().toString();
     String nonce = UUID.randomUUID().toString();
 
-    URI authorizationUri =
-      UriComponentsBuilder
-          .fromUriString("https://appleid.apple.com/auth/authorize")
-          .queryParam("client_id", "com.sugu.web")
-          .queryParam("redirect_uri", appleWebRedirectUri)
-          .queryParam("response_type", "code")
-          .queryParam("response_mode", "form_post")
-          .queryParam("scope", "name email")
-          .queryParam("state", state)
-          .queryParam("nonce", nonce)
-          .build()
-          .encode()
-          .toUri();
+    AppleAuthSession session = new AppleAuthSession(nonce, Instant.now().plus(Duration.ofMinutes(10)));
 
-      return ResponseEntity
-            .status(HttpStatus.FOUND)
-            .location(authorizationUri)
-            .build();
+    appleAuthSessionStore.save(state, session);
+
+    URI authorizationUri =
+        UriComponentsBuilder
+            .fromUriString("https://appleid.apple.com/auth/authorize")
+            .queryParam("client_id", "com.sugu.web")
+            .queryParam("redirect_uri", appleWebRedirectUri)
+            .queryParam("response_type", "code")
+            .queryParam("response_mode", "form_post")
+            .queryParam("scope", "name email")
+            .queryParam("state", state)
+            .queryParam("nonce", nonce)
+            .build()
+            .encode()
+            .toUri();
+
+    return ResponseEntity
+        .status(HttpStatus.FOUND)
+        .location(authorizationUri)
+        .build();
+  }
+
+  @PostMapping("/apple/web/callback")
+  public ResponseEntity<String> callback(@RequestParam String code, @RequestParam String state) {
+    AppleAuthSession session = appleAuthSessionStore.findAndRemove(state);
+
+    if (session == null) {
+      throw new UnauthorizedException("Invalid or expired state");
+    }
+
+    // TODO:
+    // Appleへcodeを送ってtoken取得
+    // id_token検証
+    // ログイン処理
+
+    return ResponseEntity.ok("OK");
   }
 }
