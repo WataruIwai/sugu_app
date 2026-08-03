@@ -55,6 +55,17 @@ public class AuthService {
         appleIdentityTokenVerifier.execute(
             appleAuthRequest.getIdentityToken(), appleAuthRequest.getExpectedNonceHash());
 
+    return signInOrCreateAppleUser(verifiedAppleUserInfo);
+  }
+
+  public String signInWithAppleWebAuth(String identityToken, String expectedNonce) {
+    VerifiedAppleUserInfo verifiedAppleUserInfo =
+        appleIdentityTokenVerifier.executeForWeb(identityToken, expectedNonce);
+
+    return signInOrCreateAppleUser(verifiedAppleUserInfo);
+  }
+
+  private String signInOrCreateAppleUser(VerifiedAppleUserInfo verifiedAppleUserInfo) {
     User user = userRepository.getUserByProviderUserId(verifiedAppleUserInfo.getSub());
 
     if (user == null) {
