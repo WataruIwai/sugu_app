@@ -6,11 +6,13 @@ import {
     ScrollView,
     useWindowDimensions,
 } from "react-native";
-import { Feather } from "@expo/vector-icons";
 import styled from "styled-components/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const onboardingHero = require("../../assets/onboarding-search-hero.png");
+const onboardingLookupImage = require("../../assets/onboarding-lookup-final.png");
+const onboardingSearchImage = require("../../assets/onboarding-search-final.png");
+const onboardingSaveImage = require("../../assets/onboarding-save-final.png");
+const onboardingWidgetImage = require("../../assets/onboarding-widget-final.png");
 
 type OnboardingPageProps = {
     onComplete: () => void;
@@ -18,20 +20,16 @@ type OnboardingPageProps = {
 
 const SLIDES = [
     {
-        title: "すぐ検索。\nすぐ理解。",
-        subtitle: "英単語学習を、もっとシンプルに。",
+        image: onboardingLookupImage,
     },
     {
-        title: "すぐ検索",
-        subtitle: "知りたい単語を入力",
+        image: onboardingSearchImage,
     },
     {
-        title: "すぐ理解",
-        subtitle: "意味・例文・発音",
+        image: onboardingSaveImage,
     },
     {
-        title: "保存して復習",
-        subtitle: "自分だけの単語帳",
+        image: onboardingWidgetImage,
     },
 ] as const;
 
@@ -78,24 +76,12 @@ export const OnboardingPage = ({ onComplete }: OnboardingPageProps) => {
                 onMomentumScrollEnd={handleScrollEnd}
             >
                 {SLIDES.map((slide, index) => (
-                    <Slide key={slide.title} style={{ width }}>
+                    <Slide key={`onboarding-${index}`} style={{ width }}>
                         <SlideInner>
-                            <SlideTitle>{slide.title}</SlideTitle>
-                            <SlideSubtitle>{slide.subtitle}</SlideSubtitle>
-                            <VisualWrap $topAligned={index > 0}>
-                                {index === 0 ? (
-                                    <FirstSlideVisual />
-                                ) : null}
-                                {index === 1 ? (
-                                    <SecondSlideVisual />
-                                ) : null}
-                                {index === 2 ? (
-                                    <ThirdSlideVisual />
-                                ) : null}
-                                {index === 3 ? (
-                                    <FourthSlideVisual />
-                                ) : null}
-                            </VisualWrap>
+                            <OnboardingImage
+                                source={slide.image}
+                                resizeMode="contain"
+                            />
                         </SlideInner>
                     </Slide>
                 ))}
@@ -103,9 +89,9 @@ export const OnboardingPage = ({ onComplete }: OnboardingPageProps) => {
 
             <BottomArea>
                 <DotsRow>
-                    {SLIDES.map((slide, index) => (
+                    {SLIDES.map((_, index) => (
                         <Dot
-                            key={slide.title}
+                            key={`dot-${index}`}
                             $active={index === currentIndex}
                         />
                     ))}
@@ -123,98 +109,6 @@ export const OnboardingPage = ({ onComplete }: OnboardingPageProps) => {
         </Root>
     );
 };
-
-const FirstSlideVisual = () => (
-    <HeroImage source={onboardingHero} resizeMode="contain" />
-);
-
-const SecondSlideVisual = () => (
-    <MockScreen>
-        <MockSearchBar>
-            <MockSearchValue>hel</MockSearchValue>
-            <MockSearchClear>{`\u00d7`}</MockSearchClear>
-        </MockSearchBar>
-        <PromptText>What do you want to know?</PromptText>
-        <KeyboardWrap>
-            <SuggestionRow>
-                <SuggestionChip>“hel”</SuggestionChip>
-                <SuggestionChip>hello</SuggestionChip>
-                <SuggestionChip>help</SuggestionChip>
-            </SuggestionRow>
-            <KeyboardArea>
-                {[
-                    ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
-                    ["a", "s", "d", "f", "g", "h", "j", "k", "l"],
-                    ["z", "x", "c", "v", "b", "n", "m"],
-                ].map((row, rowIndex) => (
-                    <KeyRow key={`row-${rowIndex}`}>
-                        {row.map((key) => (
-                            <KeyCap key={key}>
-                                <KeyLabel>{key}</KeyLabel>
-                            </KeyCap>
-                        ))}
-                    </KeyRow>
-                ))}
-                <BottomKeyRow>
-                    <WideKeyCap $width={66}>
-                        <KeyLabel>123</KeyLabel>
-                    </WideKeyCap>
-                    <WideKeyCap $width={160}>
-                        <KeyLabel>space</KeyLabel>
-                    </WideKeyCap>
-                    <WideKeyCap $width={90}>
-                        <KeyLabel>return</KeyLabel>
-                    </WideKeyCap>
-                </BottomKeyRow>
-            </KeyboardArea>
-        </KeyboardWrap>
-    </MockScreen>
-);
-
-const ThirdSlideVisual = () => (
-    <CompactMockScreen>
-        <MockSearchBar>
-            <MockSearchValue>Hello</MockSearchValue>
-            <MockSearchClear>{`\u00d7`}</MockSearchClear>
-        </MockSearchBar>
-        <ResultWord>hello</ResultWord>
-        <PronounceButton>
-            <Feather name="volume-2" size={18} color="#222222" />
-            <PronounceLabel>発音を聞く</PronounceLabel>
-        </PronounceButton>
-        <MeaningTitle>used as a greeting</MeaningTitle>
-        <MeaningJa>あいさつとして使う「こんにちは／やあ」</MeaningJa>
-        <MeaningExample>Hello! How are you?</MeaningExample>
-        <AddButton>
-            <AddButtonText>Add My List+</AddButtonText>
-        </AddButton>
-    </CompactMockScreen>
-);
-
-const FourthSlideVisual = () => (
-    <CompactMockScreen>
-        <ListSearchBar>
-            <ListSearchPlaceholder>登録した単語を検索</ListSearchPlaceholder>
-            <Feather name="search" size={16} color="#4a4a4a" />
-        </ListSearchBar>
-        <WordCard>
-            <WordCardText>hello</WordCardText>
-            <Feather name="trash-2" size={18} color="#d9485f" />
-        </WordCard>
-        <WordCard>
-            <WordCardText>keep</WordCardText>
-            <Feather name="trash-2" size={18} color="#d9485f" />
-        </WordCard>
-        <WordCard>
-            <WordCardText>moving</WordCardText>
-            <Feather name="trash-2" size={18} color="#d9485f" />
-        </WordCard>
-        <WordCard>
-            <WordCardText>forward</WordCardText>
-            <Feather name="trash-2" size={18} color="#d9485f" />
-        </WordCard>
-    </CompactMockScreen>
-);
 
 const Root = styled(SafeAreaView)`
     flex: 1;
@@ -244,252 +138,14 @@ const Slide = styled.View`
 
 const SlideInner = styled.View`
     flex: 1;
-    padding: 86px 34px 36px;
+    padding: 20px 0 10px;
     align-items: center;
 `;
 
-const SlideTitle = styled.Text`
-    color: #111111;
-    font-size: 30px;
-    line-height: 40px;
-    font-weight: 800;
-    text-align: center;
-`;
-
-const SlideSubtitle = styled.Text`
-    margin-top: 12px;
-    margin-bottom: 18px;
-    color: #444444;
-    font-size: 17px;
-    line-height: 24px;
-    text-align: center;
-`;
-
-const VisualWrap = styled.View<{ $topAligned: boolean }>`
+const OnboardingImage = styled(Image)`
     flex: 1;
     width: 100%;
-    justify-content: ${(props: { $topAligned: boolean }) =>
-        props.$topAligned ? "flex-start" : "center"};
-    align-items: center;
-    padding-top: 12px;
-`;
-
-const HeroImage = styled(Image)`
-    width: 100%;
-    height: 420px;
-`;
-
-const MockScreen = styled.View`
-    width: 100%;
-    min-height: 440px;
-`;
-
-const CompactMockScreen = styled.View`
-    width: 100%;
-    min-height: 408px;
-    padding: 0 0 8px;
-`;
-
-const MockBackText = styled.Text`
-    color: #151515;
-    font-size: 28px;
-    font-weight: 500;
-    margin-bottom: 16px;
-`;
-
-const MockSearchBar = styled.View`
-    height: 52px;
-    border-radius: 26px;
-    border-width: 1px;
-    border-color: #dddddd;
-    padding: 0 18px;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    background-color: #ffffff;
-`;
-
-const MockSearchValue = styled.Text`
-    color: #161616;
-    font-size: 18px;
-    font-weight: 500;
-`;
-
-const MockSearchClear = styled.Text`
-    color: #363636;
-    font-size: 22px;
-`;
-
-const PromptText = styled.Text`
-    margin-top: 56px;
-    margin-bottom: 36px;
-    color: #8b8b8b;
-    font-size: 18px;
-    text-align: center;
-`;
-
-const KeyboardWrap = styled.View`
-    margin-top: auto;
-    margin-left: -34px;
-    margin-right: -34px;
-    background-color: #e9e9ee;
-    border-top-width: 1px;
-    border-top-color: #d5d5dc;
-`;
-
-const SuggestionRow = styled.View`
-    flex-direction: row;
-    justify-content: space-around;
-    padding: 10px 14px 8px;
-    background-color: #dbdce2;
-`;
-
-const SuggestionChip = styled.Text`
-    color: #242424;
-    font-size: 14px;
-    font-weight: 500;
-`;
-
-const KeyboardArea = styled.View`
-    padding: 10px 10px 16px;
-`;
-
-const KeyRow = styled.View`
-    flex-direction: row;
-    justify-content: center;
-    margin-bottom: 8px;
-`;
-
-const KeyCap = styled.View`
-    width: 29px;
-    height: 40px;
-    border-radius: 6px;
-    background-color: #ffffff;
-    justify-content: center;
-    align-items: center;
-    margin: 0 2px;
-`;
-
-const WideKeyCap = styled.View<{ $width: number }>`
-    width: ${(props: { $width: number }) => props.$width}px;
-    height: 42px;
-    border-radius: 8px;
-    background-color: #ffffff;
-    justify-content: center;
-    align-items: center;
-    margin: 0 4px;
-`;
-
-const BottomKeyRow = styled.View`
-    flex-direction: row;
-    justify-content: center;
-    margin-top: 4px;
-`;
-
-const KeyLabel = styled.Text`
-    color: #1a1a1a;
-    font-size: 16px;
-    font-weight: 500;
-`;
-
-const ResultWord = styled.Text`
-    margin-top: 28px;
-    color: #111111;
-    font-size: 54px;
-    line-height: 60px;
-    font-weight: 800;
-`;
-
-const PronounceButton = styled.View`
-    margin-top: 14px;
-    align-self: flex-start;
-    flex-direction: row;
-    align-items: center;
-    padding: 10px 14px;
-    border-radius: 24px;
-    background-color: #f5f5f5;
-`;
-
-const PronounceLabel = styled.Text`
-    color: #111111;
-    font-size: 14px;
-    font-weight: 700;
-    margin-left: 8px;
-`;
-
-const MeaningTitle = styled.Text`
-    margin-top: 28px;
-    color: #1d1d1d;
-    font-size: 15px;
-    line-height: 22px;
-    font-weight: 800;
-`;
-
-const MeaningJa = styled.Text`
-    margin-top: 6px;
-    color: #303030;
-    font-size: 14px;
-    line-height: 22px;
-`;
-
-const MeaningExample = styled.Text`
-    margin-top: 10px;
-    margin-bottom: 26px;
-    color: #515151;
-    font-size: 14px;
-    line-height: 22px;
-`;
-
-const AddButton = styled.View`
-    margin-top: auto;
-    height: 48px;
-    border-radius: 24px;
-    border-width: 1.5px;
-    border-color: #181818;
-    align-items: center;
-    justify-content: center;
-`;
-
-const AddButtonText = styled.Text`
-    color: #111111;
-    font-size: 16px;
-    font-weight: 800;
-`;
-
-const ListSearchBar = styled.View`
-    height: 52px;
-    border-radius: 26px;
-    border-width: 1px;
-    border-color: #dddddd;
-    padding: 0 18px;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    background-color: #ffffff;
-`;
-
-const ListSearchPlaceholder = styled.Text`
-    color: #999999;
-    font-size: 17px;
-`;
-
-const WordCard = styled.View`
-    margin-top: 26px;
-    height: 66px;
-    border-radius: 18px;
-    border-width: 1px;
-    border-color: #ececec;
-    padding: 0 18px;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    background-color: #ffffff;
-`;
-
-const WordCardText = styled.Text`
-    color: #111111;
-    font-size: 18px;
-    font-weight: 700;
+    height: 100%;
 `;
 
 const BottomArea = styled.View`

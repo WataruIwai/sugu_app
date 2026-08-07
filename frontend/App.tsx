@@ -9,6 +9,8 @@ import {
 
 import {
     getAttPermissionRequested,
+    getChromeExtensionNoticeShown,
+    deleteOnboardingCompleted,
     deleteAuthToken,
     getGuestId,
     getAuthToken,
@@ -16,6 +18,7 @@ import {
     saveAttPermissionRequested,
     saveGuestId,
     saveAuthToken,
+    saveChromeExtensionNoticeShown,
     saveOnboardingCompleted,
 } from "./src/auth/tokenStorage";
 import {
@@ -56,7 +59,8 @@ type ProReturnScreen = "signin" | "list" | "search";
 
 const normalizeToken = (raw: string) => raw.trim().replace(/^"|"$/g, "");
 const MIN_BOOT_SPLASH_DURATION_MS = 2000;
-const FORCE_SHOW_ONBOARDING = false;
+const FORCE_SHOW_ONBOARDING =
+    __DEV__ && process.env.EXPO_PUBLIC_FORCE_SHOW_ONBOARDING === "true";
 type SuguDeepLink =
     | { type: "word"; wordId: number }
     | { type: "search"; word?: string };
@@ -141,6 +145,7 @@ export default function App() {
     const subscription = useSubscription();
     const bootStartedAtRef = useRef(Date.now());
     const handledInitialUrlRef = useRef<string | null>(null);
+    const chromeExtensionNoticeHandledRef = useRef(false);
     const [screen, setScreen] = useState<Screen>("signin");
     const [token, setToken] = useState<string | null>(null);
     const [guestId, setGuestId] = useState<string | null>(null);
@@ -165,8 +170,11 @@ export default function App() {
         useState<ProReturnScreen>("list");
 
     const [loading, setLoading] = useState(false);
+    const [wordListRefreshing, setWordListRefreshing] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [listMenuOpen, setListMenuOpen] = useState(false);
+    const [chromeExtensionNoticeVisible, setChromeExtensionNoticeVisible] =
+        useState(false);
 
     const [guestUpgradePromptVisible, setGuestUpgradePromptVisible] =
         useState(false);
@@ -229,7 +237,7 @@ export default function App() {
         }
     };
 
-    const fetchWords = async (currentToken: string) => {
+    const fetchWords = useCallback(async (currentToken: string) => {
         const response = await fetch(`${API_BASE_URL}/api/v1/words`, {
             headers: {
                 Authorization: `Bearer ${currentToken}`,
@@ -253,7 +261,7 @@ export default function App() {
         }
 
         return data;
-    };
+    }, []);
 
     const fetchWordDetail = async (wordId: number, currentToken: string) => {
         const response = await fetch(`${API_BASE_URL}/api/v1/words/${wordId}`, {
@@ -418,7 +426,7 @@ export default function App() {
     const handleRefreshWords = async () => {
         if (!token) return;
 
-        setLoading(true);
+        setWordListRefreshing(true);
         setErrorMessage(null);
 
         try {
@@ -430,9 +438,24 @@ export default function App() {
                     : "単語一覧の取得に失敗しました。",
             );
         } finally {
-            setLoading(false);
+            setWordListRefreshing(false);
         }
     };
+
+    const refreshWordsSilently = useCallback(
+        async (currentToken: string) => {
+            try {
+                await fetchWords(currentToken);
+            } catch (error) {
+                setErrorMessage(
+                    error instanceof Error
+                        ? error.message
+                        : "単語一覧の取得に失敗しました。",
+                );
+            }
+        },
+        [fetchWords],
+    );
 
     const handleSelectWord = async (wordId: number) => {
         if (!token) return;
@@ -910,6 +933,17 @@ export default function App() {
         setScreen("signin");
     };
 
+    const handleCloseChromeExtensionNoticeLater = () => {
+        chromeExtensionNoticeHandledRef.current = true;
+        setChromeExtensionNoticeVisible(false);
+    };
+
+    const handleDismissChromeExtensionNotice = async () => {
+        setChromeExtensionNoticeVisible(false);
+        chromeExtensionNoticeHandledRef.current = true;
+        await saveChromeExtensionNoticeShown();
+    };
+
     useEffect(() => {
         if (!bootstrapping) {
             return;
@@ -926,6 +960,7 @@ export default function App() {
                 }
 
                 if (FORCE_SHOW_ONBOARDING) {
+                    await deleteOnboardingCompleted();
                     setScreen("onboarding");
                     return;
                 }
@@ -998,14 +1033,14 @@ export default function App() {
     }, [bootstrapping, handleSuguDeepLink]);
 
     useEffect(() => {
-        if (!authenticated) {
+        if (!authenticated || !token) {
             return;
         }
 
-        if (screen === "list" && words.length === 0) {
-            void handleRefreshWords();
+        if (screen === "list") {
+            void refreshWordsSilently(token);
         }
-    }, [authenticated, screen]);
+    }, [authenticated, refreshWordsSilently, screen, token]);
 
     useEffect(() => {
         if (!token) {
@@ -1019,12 +1054,44 @@ export default function App() {
             (state) => {
                 if (state === "active") {
                     void subscription.refreshStatus();
+                    void refreshWordsSilently(token);
                 }
             },
         );
 
         return () => subscriptionStatusListener.remove();
-    }, [subscription.refreshStatus, token]);
+    }, [refreshWordsSilently, screen, subscription.refreshStatus, token]);
+
+    useEffect(() => {
+        const canShowNoticeOnCurrentScreen =
+            screen === "list" || (guestMode && screen === "search");
+
+        if (
+            bootstrapping ||
+            !canShowNoticeOnCurrentScreen ||
+            chromeExtensionNoticeHandledRef.current
+        ) {
+            return;
+        }
+
+        const showChromeExtensionNotice = async () => {
+            try {
+                const alreadyShown = await getChromeExtensionNoticeShown();
+
+                if (alreadyShown === "true") {
+                    chromeExtensionNoticeHandledRef.current = true;
+                    return;
+                }
+
+                chromeExtensionNoticeHandledRef.current = true;
+                setChromeExtensionNoticeVisible(true);
+            } catch (error) {
+                console.log("Chrome extension notice skipped:", error);
+            }
+        };
+
+        void showChromeExtensionNotice();
+    }, [bootstrapping, guestMode, screen]);
 
     useEffect(() => {
         if (bootstrapping || attCheckCompleted) {
@@ -1082,10 +1149,12 @@ export default function App() {
         return (
             <VocabularyListPage
                 words={words}
+                refreshing={wordListRefreshing}
                 errorMessage={errorMessage}
                 onPressWord={handleSelectWord}
                 onDeleteWord={handleDeleteWord}
                 onAddWordToWidget={handleAddWordToWidget}
+                onRefresh={handleRefreshWords}
                 onOpenSearch={() => handleOpenSearch("list")}
                 onOpenTerms={handleOpenTerms}
                 onOpenPrivacyPolicy={handleOpenPrivacyPolicy}
@@ -1094,8 +1163,17 @@ export default function App() {
                 onDeleteAccount={handleDeleteAccount}
                 isPro={Boolean(token) && subscription.isActive}
                 menuOpen={listMenuOpen}
+                chromeExtensionNoticeVisible={
+                    Boolean(token) && chromeExtensionNoticeVisible
+                }
                 onToggleMenu={() => setListMenuOpen((current) => !current)}
                 onLogout={handleLogout}
+                onCloseChromeExtensionNoticeLater={
+                    handleCloseChromeExtensionNoticeLater
+                }
+                onDismissChromeExtensionNotice={() =>
+                    void handleDismissChromeExtensionNotice()
+                }
             />
         );
     }
@@ -1112,33 +1190,44 @@ export default function App() {
 
     if (screen === "search") {
         return (
-            <SearchPage
-                searchText={searchText}
-                searchLoading={searchLoading}
-                addToListLoading={addToListLoading}
-                canAddToMyList={Boolean(token) || guestMode}
-                guestUpgradePromptVisible={guestUpgradePromptVisible}
-                guestUpgradePromptTitle={guestUpgradePromptTitle}
-                guestUpgradePromptMessage={guestUpgradePromptMessage}
-                searchBonusPromptVisible={searchBonusPromptVisible}
-                searchBonusPromptLoading={searchBonusPromptLoading}
-                searchBonusPromptTitle={searchBonusPromptTitle}
-                searchBonusPromptMessage={searchBonusPromptMessage}
-                searchBonusPromptErrorMessage={searchBonusPromptErrorMessage}
-                searchErrorMessage={searchErrorMessage}
-                searchResult={searchResult}
-                onBack={handleBackFromSearch}
-                onChangeSearchText={handleChangeSearchText}
-                onSubmitSearch={handleDictionarySearch}
-                onAddSearchResultToMyList={handleAddSearchResultToMyList}
-                onCloseGuestUpgradePrompt={handleCloseGuestUpgradePrompt}
-                onCloseSearchBonusPrompt={handleCloseSearchBonusPrompt}
-                onNavigateSignUpFromGuestPrompt={
-                    handleNavigateSignUpFromGuestPrompt
-                }
-                onWatchSearchBonusAd={handleWatchSearchBonusAd}
-                onOpenPro={() => handleOpenPro("search")}
-            />
+            <>
+                <SearchPage
+                    searchText={searchText}
+                    searchLoading={searchLoading}
+                    addToListLoading={addToListLoading}
+                    canAddToMyList={Boolean(token) || guestMode}
+                    guestUpgradePromptVisible={guestUpgradePromptVisible}
+                    guestUpgradePromptTitle={guestUpgradePromptTitle}
+                    guestUpgradePromptMessage={guestUpgradePromptMessage}
+                    searchBonusPromptVisible={searchBonusPromptVisible}
+                    searchBonusPromptLoading={searchBonusPromptLoading}
+                    searchBonusPromptTitle={searchBonusPromptTitle}
+                    searchBonusPromptMessage={searchBonusPromptMessage}
+                    searchBonusPromptErrorMessage={searchBonusPromptErrorMessage}
+                    chromeExtensionNoticeVisible={
+                        guestMode && chromeExtensionNoticeVisible
+                    }
+                    searchErrorMessage={searchErrorMessage}
+                    searchResult={searchResult}
+                    onBack={handleBackFromSearch}
+                    onChangeSearchText={handleChangeSearchText}
+                    onSubmitSearch={handleDictionarySearch}
+                    onAddSearchResultToMyList={handleAddSearchResultToMyList}
+                    onCloseGuestUpgradePrompt={handleCloseGuestUpgradePrompt}
+                    onCloseSearchBonusPrompt={handleCloseSearchBonusPrompt}
+                    onNavigateSignUpFromGuestPrompt={
+                        handleNavigateSignUpFromGuestPrompt
+                    }
+                    onWatchSearchBonusAd={handleWatchSearchBonusAd}
+                    onOpenPro={() => handleOpenPro("search")}
+                    onCloseChromeExtensionNoticeLater={
+                        handleCloseChromeExtensionNoticeLater
+                    }
+                    onDismissChromeExtensionNotice={() =>
+                        void handleDismissChromeExtensionNotice()
+                    }
+                />
+            </>
         );
     }
 

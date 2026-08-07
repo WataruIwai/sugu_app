@@ -72,6 +72,21 @@ html.sugu-youtube-docked body {
   overflow-x: hidden !important;
 }
 
+html.sugu-youtube-docked #columns {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  min-width: 0 !important;
+  overflow: visible !important;
+}
+
+html.sugu-youtube-docked #primary {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  min-width: 0 !important;
+}
+
 html.sugu-youtube-docked ytd-masthead,
 html.sugu-youtube-docked ytd-masthead #container {
   overflow: hidden !important;
@@ -96,7 +111,7 @@ html.sugu-disney-docked {
 }
 
 html.sugu-prime-docked {
-  overflow: hidden !important;
+  overflow-x: hidden !important;
 }
 
 html.sugu-page-docked {
@@ -146,6 +161,7 @@ html.sugu-page-docked body {
 }
 
 .sugu-panel {
+  position: relative;
   width: 360px;
   max-width: min(360px, calc(100vw - 28px));
   overflow: hidden;
@@ -249,6 +265,38 @@ html.sugu-page-docked body {
   cursor: grabbing;
 }
 
+.sugu-settings-menu {
+  position: absolute;
+  top: 52px;
+  right: 52px;
+  z-index: 2;
+  min-width: 148px;
+  padding: 6px;
+  border: 1px solid var(--sugu-color-border);
+  border-radius: 8px;
+  background: var(--sugu-color-surface);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+}
+
+.sugu-settings-menu-item {
+  width: 100%;
+  min-height: 38px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--sugu-color-text);
+  cursor: pointer;
+  font-family: var(--sugu-font-body);
+  font-size: 13px;
+  font-weight: 800;
+  text-align: left;
+  padding: 0 10px;
+}
+
+.sugu-settings-menu-item:hover {
+  background: var(--sugu-color-soft-surface);
+}
+
 .sugu-title {
   flex: 1;
   min-width: 0;
@@ -315,10 +363,13 @@ html.sugu-page-docked body {
 
 .sugu-search-row {
   display: flex;
+  align-items: stretch;
   gap: 8px;
 }
 
 .sugu-input {
+  -webkit-appearance: none;
+  appearance: none;
   width: 100%;
   min-width: 0;
   height: 42px;
@@ -329,6 +380,24 @@ html.sugu-page-docked body {
   background: var(--sugu-color-surface);
   color: var(--sugu-color-text);
   font-size: 15px;
+  line-height: 42px;
+}
+
+#sugu-extension-root .sugu-search-row .sugu-input,
+#sugu-extension-root .sugu-search-row .sugu-search-button {
+  height: 42px !important;
+  min-height: 42px !important;
+  max-height: 42px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+#sugu-extension-root .sugu-search-row .sugu-input {
+  line-height: 42px !important;
+}
+
+#sugu-extension-root .sugu-search-row .sugu-search-button {
+  line-height: 1 !important;
 }
 
 .sugu-input:focus {
@@ -340,7 +409,20 @@ html.sugu-page-docked body {
   box-shadow: 0 0 0 2px rgba(238, 238, 238, 0.12);
 }
 
+#sugu-extension-root.sugu-theme-dark .sugu-input {
+  background: #ffffff;
+  color: #2b2b2b;
+}
+
+#sugu-extension-root.sugu-theme-dark .sugu-input::placeholder {
+  color: #777777;
+}
+
 .sugu-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
   height: 42px;
   border: 0;
   border-radius: 8px;
@@ -423,8 +505,12 @@ html.sugu-page-docked body {
 }
 
 .sugu-status.is-success {
-  color: #166534;
+  color: #2e8b57;
   font-weight: 700;
+}
+
+#sugu-extension-root.sugu-theme-dark .sugu-status.is-success {
+  color: #93d4a8;
 }
 
 .sugu-result {
@@ -520,6 +606,86 @@ html.sugu-page-docked body {
   flex: 1;
 }
 
+.sugu-loading-state {
+  min-height: 170px;
+  padding: 38px 0 46px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.sugu-loading-title {
+  color: var(--sugu-color-text);
+  font-family: var(--sugu-font-word);
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 28px;
+  margin-bottom: 18px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+.sugu-loading-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.sugu-loading-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #c7c7c7;
+  animation: sugu-loading-dot 1.15s ease-in-out infinite;
+}
+
+.sugu-loading-dot:nth-child(2) {
+  animation-delay: 0.16s;
+}
+
+.sugu-loading-dot:nth-child(3) {
+  animation-delay: 0.32s;
+}
+
+@keyframes sugu-loading-dot {
+  0%,
+  72%,
+  100% {
+    background: #c7c7c7;
+    transform: scale(1);
+  }
+
+  28% {
+    background: #1f1f1f;
+    transform: scale(1.05);
+  }
+}
+
+#sugu-extension-root.sugu-theme-dark .sugu-loading-dot {
+  background: #6b6b6b;
+}
+
+#sugu-extension-root.sugu-theme-dark .sugu-loading-dot {
+  animation-name: sugu-loading-dot-dark;
+}
+
+@keyframes sugu-loading-dot-dark {
+  0%,
+  72%,
+  100% {
+    background: #6b6b6b;
+    transform: scale(1);
+  }
+
+  28% {
+    background: #eeeeee;
+    transform: scale(1.05);
+  }
+}
+
 .sugu-simple-view,
 .sugu-onboarding,
 .sugu-limit-view {
@@ -547,6 +713,32 @@ html.sugu-page-docked body {
   font-size: 18px;
   line-height: 24px;
   white-space: nowrap;
+}
+
+.sugu-user-limit-view .sugu-simple-title {
+  white-space: normal;
+}
+
+.sugu-qr-card {
+  align-self: center;
+  width: 100%;
+  max-width: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--sugu-color-border);
+  border-radius: 8px;
+  background: var(--sugu-color-surface);
+}
+
+.sugu-app-qr {
+  display: block;
+  width: 144px;
+  height: 144px;
+  border-radius: 6px;
+  background: #ffffff;
 }
 
 .sugu-onboarding-copy {
@@ -591,6 +783,19 @@ html.sugu-page-docked body {
   color: var(--sugu-color-surface);
 }
 
+.sugu-apple-auth-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.sugu-external-tab-icon {
+  flex: 0 0 auto;
+  width: 17px;
+  height: 17px;
+}
+
 .sugu-outline-wide-button {
   border: 1px solid var(--sugu-color-border);
   background: var(--sugu-color-surface);
@@ -627,8 +832,18 @@ html.sugu-page-docked body {
   border-radius: 26px;
   background: var(--sugu-color-surface);
   color: var(--sugu-color-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   font-size: 16px;
   font-weight: 800;
+}
+
+.sugu-add-button.is-saved {
+  border-color: #86c79d;
+  background: #f3fbf5;
+  color: #2e8b57;
 }
 
 .sugu-add-button:disabled {
@@ -637,7 +852,26 @@ html.sugu-page-docked body {
   background: var(--sugu-color-surface);
 }
 
+.sugu-add-button.is-saved:disabled {
+  border-color: #86c79d;
+  color: #2e8b57;
+  background: #f3fbf5;
+}
+
+.sugu-check-icon {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+}
+
 #sugu-extension-root.sugu-theme-dark .sugu-add-button:disabled {
   border-color: #666666;
   color: #b0b0b0;
+}
+
+#sugu-extension-root.sugu-theme-dark .sugu-add-button.is-saved,
+#sugu-extension-root.sugu-theme-dark .sugu-add-button.is-saved:disabled {
+  border-color: #77ad8a;
+  color: #93d4a8;
+  background: #25362a;
 }

@@ -4,6 +4,8 @@ const AUTH_TOKEN_KEY = "auth_token";
 const GUEST_ID_KEY = "guest_id";
 const ATT_PERMISSION_REQUESTED_KEY = "att_permission_requested";
 const ONBOARDING_COMPLETED_KEY = "onboarding_completed";
+const CHROME_EXTENSION_NOTICE_SHOWN_KEY =
+  "chrome_extension_notice_2026_08_shown";
 
 export const saveAuthToken = async (token: string) => {
   await SecureStore.setItemAsync(AUTH_TOKEN_KEY, token);
@@ -43,4 +45,16 @@ export const saveOnboardingCompleted = async () => {
 
 export const getOnboardingCompleted = async () => {
   return SecureStore.getItemAsync(ONBOARDING_COMPLETED_KEY);
+};
+
+export const deleteOnboardingCompleted = async () => {
+  await SecureStore.deleteItemAsync(ONBOARDING_COMPLETED_KEY);
+};
+
+export const saveChromeExtensionNoticeShown = async () => {
+  await SecureStore.setItemAsync(CHROME_EXTENSION_NOTICE_SHOWN_KEY, "true");
+};
+
+export const getChromeExtensionNoticeShown = async () => {
+  return SecureStore.getItemAsync(CHROME_EXTENSION_NOTICE_SHOWN_KEY);
 };

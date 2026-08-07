@@ -6,13 +6,16 @@ import styled from "styled-components/native";
 import { ScreenLayout } from "../layout/ScreenLayout";
 import { WORD_DISPLAY_FONT_FAMILY } from "../styles/fonts";
 import { WordItem } from "../types";
+import { ChromeExtensionNotice } from "../components/ChromeExtensionNotice";
 
 type VocabularyListPageProps = {
     words: WordItem[];
+    refreshing: boolean;
     errorMessage: string | null;
     onPressWord: (wordId: number) => void;
     onDeleteWord: (wordId: number) => void;
     onAddWordToWidget: (word: WordItem) => void;
+    onRefresh: () => void;
     onOpenSearch: () => void;
     onOpenTerms: () => void;
     onOpenPrivacyPolicy: () => void;
@@ -21,16 +24,21 @@ type VocabularyListPageProps = {
     onDeleteAccount: () => void;
     isPro: boolean;
     menuOpen: boolean;
+    chromeExtensionNoticeVisible: boolean;
     onToggleMenu: () => void;
     onLogout: () => void;
+    onCloseChromeExtensionNoticeLater: () => void;
+    onDismissChromeExtensionNotice: () => void;
 };
 
 export const VocabularyListPage = ({
     words,
+    refreshing,
     errorMessage,
     onPressWord,
     onDeleteWord,
     onAddWordToWidget,
+    onRefresh,
     onOpenSearch,
     onOpenTerms,
     onOpenPrivacyPolicy,
@@ -39,8 +47,11 @@ export const VocabularyListPage = ({
     onDeleteAccount,
     isPro,
     menuOpen,
+    chromeExtensionNoticeVisible,
     onToggleMenu,
     onLogout,
+    onCloseChromeExtensionNoticeLater,
+    onDismissChromeExtensionNotice,
 }: VocabularyListPageProps) => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [actionWord, setActionWord] = useState<WordItem | null>(null);
@@ -267,6 +278,13 @@ export const VocabularyListPage = ({
         >
             <ListWrap>
                 {errorMessage ? <ErrorText>{errorMessage}</ErrorText> : null}
+                {chromeExtensionNoticeVisible ? (
+                    <ChromeExtensionNotice
+                        variant="inline"
+                        onCloseLater={onCloseChromeExtensionNoticeLater}
+                        onDismiss={onDismissChromeExtensionNotice}
+                    />
+                ) : null}
                 <ListSearchTrack>
                     <ListSearchInput
                         autoCapitalize="none"
@@ -289,6 +307,8 @@ export const VocabularyListPage = ({
                 <WordsList
                     data={filteredWords}
                     keyExtractor={keyExtractor}
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
                     showsVerticalScrollIndicator={false}
                     bounces={false}
                     overScrollMode="never"
@@ -345,7 +365,7 @@ const WordListItem = React.memo(
 
 const FixedMenuRow = styled.View<{ $hasBadge: boolean }>`
     flex-direction: row;
-    justify-content: ${(props) =>
+    justify-content: ${(props: { $hasBadge: boolean }) =>
         props.$hasBadge ? "space-between" : "flex-end"};
     align-items: center;
     padding-right: 14px;

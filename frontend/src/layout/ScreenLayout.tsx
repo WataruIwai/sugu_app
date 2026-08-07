@@ -156,8 +156,9 @@ const ContentContainer = styled.View<{
 }>`
     ${(props: { $fillViewport: boolean }) =>
         props.$fillViewport ? "flex: 1;" : ""}
-    padding: 0px ${(props) => props.$horizontalPadding}px;
-    margin-top: ${(props) => props.$topMargin}px;
+    padding: 0px ${(props: { $horizontalPadding: number }) =>
+        props.$horizontalPadding}px;
+    margin-top: ${(props: { $topMargin: number }) => props.$topMargin}px;
 `;
 
 const CenteredContainer = styled.View`
@@ -178,9 +179,11 @@ const FixedTopWrap = styled.View<{
     $topOffset: number;
 }>`
     position: absolute;
-    top: ${(props) => props.$topOffset}px;
-    left: ${(props) => props.$horizontalPadding}px;
-    right: ${(props) => props.$horizontalPadding}px;
+    top: ${(props: { $topOffset: number }) => props.$topOffset}px;
+    left: ${(props: { $horizontalPadding: number }) =>
+        props.$horizontalPadding}px;
+    right: ${(props: { $horizontalPadding: number }) =>
+        props.$horizontalPadding}px;
     z-index: 30;
 `;
 
