@@ -8,13 +8,11 @@ public class GuestUsageCount implements UsageCount {
   private final String guestId;
   private final LocalDate usageDate;
   private int baseLimit;
-  private int bonusCount;
   private int usedCount;
-  private int bonusUsedCount;
 
   public GuestUsageCount(
-      long id, String guestId, LocalDate usageDate, int baseLimit, int bonusCount, int usedCount) {
-    this(id, guestId, usageDate, baseLimit, bonusCount, usedCount, 0);
+      long id, String guestId, LocalDate usageDate, int baseLimit, int usedCount) {
+    this(id, guestId, usageDate, baseLimit, usedCount, 0);
   }
 
   public GuestUsageCount(
@@ -23,25 +21,18 @@ public class GuestUsageCount implements UsageCount {
       LocalDate usageDate,
       int baseLimit,
       int bonusCount,
-      int usedCount,
-      int bonusUsedCount) {
+      int usedCount
+    ) {
     this.id = id;
     this.guestId = guestId;
     this.usageDate = usageDate;
     this.baseLimit = baseLimit;
-    this.bonusCount = bonusCount;
     this.usedCount = usedCount;
-    this.bonusUsedCount = bonusUsedCount;
   }
 
   @Override
   public int getRemainingCount() {
     return baseLimit - usedCount;
-  }
-
-  @Override
-  public int getRemainingBonusCount() {
-    return bonusCount - bonusUsedCount;
   }
 
   public String getGuestId() {
@@ -54,9 +45,5 @@ public class GuestUsageCount implements UsageCount {
 
   public int getUsedCount() {
     return usedCount;
-  }
-
-  public int getBonusUsedCount() {
-    return bonusUsedCount;
   }
 }
