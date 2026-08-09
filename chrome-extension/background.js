@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://sugu-app-dev.onrender.com";
+const API_BASE_URL = "https://vocab-app-7lb5.onrender.com";
 const TOKEN_KEY = "suguAuthToken";
 const GUEST_ID_KEY = "suguGuestId";
 const AUTH_ORIGIN_TAB_KEY = "suguAppleAuthOriginTabId";
@@ -6,7 +6,7 @@ const AUTH_CALLBACK_PATHS = [
   "/api/v1/auth/apple/web/callback",
   "/auth/apple/web/callback"
 ];
-const SUGU_PRO_URL = "https://apps.apple.com/search?term=Sugu";
+const SUGU_PRO_URL = "https://apps.apple.com/app/id6767128244";
 const ERROR_MESSAGE_BY_CODE = {
   BAD_REQUEST: "入力内容に誤りがあります",
   UNAUTHORIZED: "認証に失敗しました",
@@ -101,13 +101,6 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 
-  if (message?.type === "SUGU_OPEN_EXTERNAL") {
-    openExternal(message.url)
-      .then(() => sendResponse({ ok: true }))
-      .catch((error) => sendResponse(toErrorResponse(error)));
-    return true;
-  }
-
   return false;
 });
 
@@ -165,6 +158,12 @@ async function saveWord(word) {
 
   if (!response.ok) {
     const text = await response.text();
+    console.warn("Sugu save failed", {
+      status: response.status,
+      responseText: text,
+      tokenPresent: Boolean(token),
+      word: trimmed
+    });
     await handleAuthExpired(response, token);
     throw createServerError(response, text, "単語の保存に失敗しました。");
   }
@@ -260,11 +259,6 @@ function toErrorResponse(error) {
     status: error?.status ?? 0,
     authExpired: Boolean(error?.authExpired)
   };
-}
-
-async function openExternal(url) {
-  const targetUrl = typeof url === "string" && url ? url : SUGU_PRO_URL;
-  await chrome.tabs.create({ url: targetUrl });
 }
 
 async function startAppleAuth(originTabId) {

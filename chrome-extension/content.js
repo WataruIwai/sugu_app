@@ -1,4 +1,5 @@
 const ROOT_ID = "sugu-extension-root";
+const TOKEN_KEY = "suguAuthToken";
 const THEME_KEY = "suguTheme";
 const LAYOUT_KEY = "suguLayoutMode";
 const COLLAPSED_KEY = "suguCollapsed";
@@ -10,7 +11,7 @@ const VIEW_SEARCH = "search";
 const VIEW_LOGIN = "login";
 const VIEW_SIGNUP = "signup";
 const VIEW_GUEST_LIMIT_REACHED = "guestLimitReached";
-const VIEW_PRO_INFO = "proInfo";
+const VIEW_USER_LIMIT_REACHED = "userLimitReached";
 const DOCKED_WIDTH_CSS = "clamp(360px, 30vw, 460px)";
 const PAGE_DOCKED_CLASS = "sugu-page-docked";
 const FULLSCREEN_DOCKED_CLASS = "sugu-fullscreen-docked";
@@ -33,9 +34,11 @@ let originalPrimeStyles = null;
 let currentPrimeOverlayHosts = [];
 let originalPrimeOverlayStyles = new Map();
 let primeSyncRetryTimer = null;
+let primeQuickSyncTimer = null;
 let currentYouTubeHosts = [];
 let originalYouTubeStyles = new Map();
 let youtubeSyncRetryTimer = null;
+let netflixResizeRetryTimer = null;
 let lastSuguInput = null;
 let lastKeyboardInputAt = 0;
 
@@ -49,6 +52,8 @@ const state = {
   hasGuestId: false,
   proUrl: "",
   loading: false,
+  saving: false,
+  savedWord: "",
   position: null,
   theme: "light",
   layoutMode: LAYOUT_FLOATING,
@@ -135,6 +140,61 @@ function cleanupSuguFromPage() {
   }
 }
 
+function cleanupUnsupportedDockedLayout() {
+  if (isDockedLayoutSupportedPage()) {
+    return;
+  }
+
+  document.documentElement.classList.remove(
+    PAGE_DOCKED_CLASS,
+    FULLSCREEN_DOCKED_CLASS,
+    YOUTUBE_DOCKED_CLASS,
+    YOUTUBE_FULLSCREEN_DOCKED_CLASS,
+    DISNEY_DOCKED_CLASS,
+    PRIME_DOCKED_CLASS
+  );
+  document.documentElement.style.removeProperty("--sugu-docked-width");
+
+  if (currentFullscreenHost) {
+    currentFullscreenHost.classList.remove(FULLSCREEN_DOCKED_CLASS);
+    currentFullscreenHost.classList.remove(YOUTUBE_FULLSCREEN_DOCKED_CLASS);
+    currentFullscreenHost = null;
+  }
+
+  if (document.body) {
+    if (originalBodyStyles) {
+      document.body.style.marginRight = originalBodyStyles.marginRight;
+      document.body.style.maxWidth = originalBodyStyles.maxWidth;
+      originalBodyStyles = null;
+    } else {
+      clearSuguBodyDockStyles(document.body);
+    }
+  }
+
+  resetDisneyLayout();
+  resetPrimeLayout();
+  resetYouTubeLayout();
+  clearDisneyLayoutRetries();
+  clearPrimeLayoutRetries();
+  clearYouTubeLayoutRetries();
+}
+
+function clearSuguBodyDockStyles(body) {
+  const suguDockPatterns = [
+    "--sugu-docked-width",
+    DOCKED_WIDTH_CSS,
+    "100vw -"
+  ];
+
+  if (suguDockPatterns.some((pattern) => body.style.marginRight.includes(pattern))) {
+    body.style.marginRight = "";
+  }
+
+  if (suguDockPatterns.some((pattern) => body.style.maxWidth.includes(pattern))) {
+    body.style.maxWidth = "";
+  }
+}
+
 function extractJwtFromDocument() {
   const text = document.body?.innerText?.trim() ?? "";
   const match = text.match(/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/);
@@ -174,8 +234,12 @@ function init() {
 
   render();
   bindGlobalKeyboardGuards();
+  document.addEventListener("pointerdown", closeSettingsMenuOnOutsidePointer);
   document.addEventListener("fullscreenchange", handleFullscreenChange);
   document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+  document.addEventListener("mousemove", schedulePrimeQuickSync, true);
+  document.addEventListener("click", schedulePrimeQuickSync, true);
+  window.addEventListener("resize", schedulePrimeQuickSync);
   restoreSettings();
 }
 
@@ -215,9 +279,14 @@ function render() {
   }
 
   root.innerHTML = "";
+  const canUseDockedLayout = isDockedLayoutSupportedPage();
+  const effectiveLayoutMode = canUseDockedLayout ? state.layoutMode : LAYOUT_FLOATING;
+  if (!canUseDockedLayout) {
+    cleanupUnsupportedDockedLayout();
+  }
   root.className = [
     `sugu-theme-${state.theme}`,
-    `sugu-layout-${state.layoutMode}`,
+    `sugu-layout-${effectiveLayoutMode}`,
     state.collapsed ? "sugu-is-collapsed" : "",
     getFullscreenElement() ? "sugu-is-fullscreen" : ""
   ].filter(Boolean).join(" ");
@@ -227,14 +296,14 @@ function render() {
   syncPrimeLayout();
   syncYouTubeLayout();
 
-  if (state.layoutMode === LAYOUT_DOCKED && state.collapsed) {
+  if (effectiveLayoutMode === LAYOUT_DOCKED && state.collapsed) {
     root.style.left = "auto";
     root.style.top = getFullscreenElement() ? "10vh" : "6vh";
     root.style.right = "0";
     root.style.bottom = "auto";
     root.style.height = "";
     root.style.transform = "none";
-  } else if (state.layoutMode === LAYOUT_DOCKED) {
+  } else if (effectiveLayoutMode === LAYOUT_DOCKED) {
     root.style.left = "auto";
     root.style.top = "0";
     root.style.right = "0";
@@ -242,9 +311,11 @@ function render() {
     root.style.height = "";
     root.style.transform = "none";
   } else if (state.position) {
-    root.style.left = `${state.position.x}px`;
+    root.style.left = "auto";
     root.style.top = `${state.position.y}px`;
-    root.style.right = "auto";
+    root.style.right = state.position.right !== undefined
+      ? `${state.position.right}px`
+      : `${Math.max(8, window.innerWidth - state.position.x - root.getBoundingClientRect().width)}px`;
     root.style.bottom = "auto";
     root.style.height = "";
     root.style.transform = "none";
@@ -276,11 +347,20 @@ function render() {
     () => void toggleTheme()
   );
   const layoutButton = createIconButton(
-    state.layoutMode === LAYOUT_DOCKED ? "自由配置にする" : "右側に固定",
-    state.layoutMode === LAYOUT_DOCKED ? "⇱" : "▥",
+    effectiveLayoutMode === LAYOUT_DOCKED ? "自由配置にする" : "右側に固定",
+    effectiveLayoutMode === LAYOUT_DOCKED ? "⇱" : "▥",
     () => void toggleLayoutMode()
   );
-  const collapsedDockHandle = state.layoutMode === LAYOUT_DOCKED && state.collapsed;
+  const settingsButton = createIconButton(
+    "設定",
+    "⚙",
+    () => {
+      state.settingsOpen = !state.settingsOpen;
+      render();
+    }
+  );
+  settingsButton.dataset.suguSettingsToggle = "true";
+  const collapsedDockHandle = effectiveLayoutMode === LAYOUT_DOCKED && state.collapsed;
   const collapseButton = createIconButton(
     state.collapsed ? "Suguを開く" : "閉じる",
     collapsedDockHandle ? "☰" : state.collapsed ? "+" : "−",
@@ -289,9 +369,18 @@ function render() {
 
   header.append(title);
   if (!state.collapsed) {
-    header.append(themeButton, layoutButton);
+    if (state.hasToken) {
+      header.append(settingsButton);
+    }
+    header.append(themeButton);
+    if (canUseDockedLayout) {
+      header.append(layoutButton);
+    }
   }
   header.append(collapseButton);
+  if (state.settingsOpen && state.hasToken && !state.collapsed) {
+    panel.append(renderSettingsMenu());
+  }
 
   const body = createElement("div", { className: "sugu-body" });
 
@@ -313,9 +402,8 @@ function render() {
     body.append(renderAuthInfoView({
       title: "ログイン",
       description: "Sign in with AppleでSuguアカウントにログインします。",
-      primaryText: "Sign in with Appleでログイン",
-      primaryAction: () => void startAppleAuth(),
-      footnote: "認証画面を新しいタブで開きます。"
+      primaryText: "Sign in with Apple",
+      primaryAction: () => void startAppleAuth()
     }));
     panel.append(header, body);
     root.append(panel);
@@ -326,9 +414,8 @@ function render() {
     body.append(renderAuthInfoView({
       title: "アカウント作成",
       description: "無料アカウントを作成すると、登録ユーザー向けの検索回数を利用でき、単語を保存できます。",
-      primaryText: "Sign in with Appleで作成",
-      primaryAction: () => void startAppleAuth(),
-      footnote: "認証画面を新しいタブで開きます。"
+      primaryText: "Sign in with Apple",
+      primaryAction: () => void startAppleAuth()
     }));
     panel.append(header, body);
     root.append(panel);
@@ -342,8 +429,8 @@ function render() {
     return;
   }
 
-  if (state.appView === VIEW_PRO_INFO) {
-    body.append(renderProInfoView());
+  if (state.appView === VIEW_USER_LIMIT_REACHED) {
+    body.append(renderUserLimitReachedView());
     panel.append(header, body);
     root.append(panel);
     return;
@@ -364,6 +451,7 @@ function render() {
   });
   input.addEventListener("input", () => {
     state.currentWord = input.value;
+    state.savedWord = "";
   });
   input.addEventListener("focus", () => {
     lastSuguInput = input;
@@ -383,7 +471,7 @@ function render() {
 
   const searchButton = createElement("button", {
     className: "sugu-button sugu-search-button",
-    text: state.loading ? "検索中" : "検索"
+    text: "検索"
   });
   searchButton.disabled = state.loading;
   searchButton.addEventListener("click", () => {
@@ -410,6 +498,10 @@ function render() {
   const status = createElement("div", { className: "sugu-status", attributes: { "data-sugu-status": "true" } });
   body.append(status);
 
+  if (state.loading) {
+    body.append(renderSearchLoading());
+  }
+
   if (state.result) {
     body.append(renderResult(state.result));
   }
@@ -424,6 +516,60 @@ function renderLoadingView() {
     children: [
       createElement("div", { className: "sugu-simple-title", text: "Sugu" }),
       createElement("div", { className: "sugu-simple-description", text: "読み込んでいます。" })
+    ]
+  });
+}
+
+function renderSettingsMenu() {
+  const menu = createElement("div", { className: "sugu-settings-menu" });
+  menu.addEventListener("pointerdown", (event) => event.stopPropagation());
+
+  const logoutButton = createElement("button", {
+    className: "sugu-settings-menu-item",
+    text: "ログアウト",
+    attributes: { type: "button" }
+  });
+  logoutButton.addEventListener("click", () => void logout());
+  menu.append(logoutButton);
+  return menu;
+}
+
+function closeSettingsMenuOnOutsidePointer(event) {
+  if (!state.settingsOpen) {
+    return;
+  }
+
+  const target = event.target;
+  if (!(target instanceof Element)) {
+    return;
+  }
+
+  if (
+    target.closest(".sugu-settings-menu") ||
+    target.closest("[data-sugu-settings-toggle='true']")
+  ) {
+    return;
+  }
+
+  state.settingsOpen = false;
+  render();
+}
+
+function renderSearchLoading() {
+  const loadingWord = cleanSelection(state.currentWord) || "word";
+  return createElement("div", {
+    className: "sugu-loading-state",
+    attributes: { "aria-live": "polite" },
+    children: [
+      createElement("div", { className: "sugu-loading-title", text: `Looking up ${loadingWord}` }),
+      createElement("div", {
+        className: "sugu-loading-dots",
+        children: [
+          createElement("span", { className: "sugu-loading-dot" }),
+          createElement("span", { className: "sugu-loading-dot" }),
+          createElement("span", { className: "sugu-loading-dot" })
+        ]
+      })
     ]
   });
 }
@@ -466,9 +612,12 @@ function createAuthChoice(label, buttonText, onClick) {
 
 function renderAuthInfoView({ title, description, primaryText, primaryAction, footnote }) {
   const primaryButton = createElement("button", {
-    className: "sugu-button sugu-primary-wide-button",
-    text: primaryText
+    className: "sugu-button sugu-primary-wide-button sugu-apple-auth-button"
   });
+  primaryButton.append(
+    createElement("span", { text: primaryText }),
+    createExternalTabIcon()
+  );
   primaryButton.addEventListener("click", primaryAction);
 
   const guestButton = createElement("button", {
@@ -477,22 +626,27 @@ function renderAuthInfoView({ title, description, primaryText, primaryAction, fo
   });
   guestButton.addEventListener("click", () => void startGuest());
 
+  const children = [
+    createElement("div", { className: "sugu-simple-title", text: title }),
+    createElement("div", { className: "sugu-simple-description", text: description }),
+    primaryButton,
+    guestButton
+  ];
+
+  if (footnote) {
+    children.push(createElement("div", { className: "sugu-simple-footnote", text: footnote }));
+  }
+
   return createElement("div", {
     className: "sugu-simple-view",
-    children: [
-      createElement("div", { className: "sugu-simple-title", text: title }),
-      createElement("div", { className: "sugu-simple-description", text: description }),
-      primaryButton,
-      guestButton,
-      createElement("div", { className: "sugu-simple-footnote", text: footnote })
-    ]
+    children
   });
 }
 
 function renderInlineLoginAction() {
   const loginButton = createElement("button", {
     className: "sugu-button sugu-inline-login-button",
-    text: "Sign in with Appleでログイン"
+    text: "Sign in with Apple"
   });
   loginButton.addEventListener("click", () => void startAppleAuth());
 
@@ -515,12 +669,6 @@ function renderGuestLimitReachedView() {
   });
   loginButton.addEventListener("click", () => showView(VIEW_LOGIN));
 
-  const proButton = createElement("button", {
-    className: "sugu-link-button",
-    text: "Sugu Proについて見る"
-  });
-  proButton.addEventListener("click", () => showView(VIEW_PRO_INFO));
-
   return createElement("div", {
     className: "sugu-limit-view",
     children: [
@@ -531,45 +679,55 @@ function renderGuestLimitReachedView() {
       }),
       createElement("div", {
         className: "sugu-simple-description",
-        text: "Sugu Proなら、検索回数を気にせず利用できます。"
+        text: "サブスクリプションに登録すれば、検索回数を気にせず利用できます。"
       }),
       signupButton,
-      loginButton,
-      proButton
+      loginButton
     ]
   });
 }
 
-function renderProInfoView() {
-  const openButton = createElement("button", {
-    className: "sugu-button sugu-primary-wide-button",
-    text: "Sugu Proの案内を開く"
-  });
-  openButton.addEventListener("click", () => void openProLink());
-
+function renderUserLimitReachedView() {
   const backButton = createElement("button", {
     className: "sugu-button sugu-outline-wide-button",
-    text: "戻る"
+    text: "検索に戻る",
+    attributes: { type: "button" }
   });
   backButton.addEventListener("click", () => {
-    state.appView = state.lastSearchError ? VIEW_GUEST_LIMIT_REACHED : VIEW_SEARCH;
+    state.appView = VIEW_SEARCH;
     render();
   });
 
+  const qrImage = createElement("img", {
+    className: "sugu-app-qr",
+    attributes: {
+      src: buildQrImageUrl(state.proUrl),
+      alt: "iOS版SuguのQRコード"
+    }
+  });
+
   return createElement("div", {
-    className: "sugu-simple-view",
+    className: "sugu-limit-view sugu-user-limit-view",
     children: [
-      createElement("div", { className: "sugu-simple-title", text: "Sugu Pro" }),
+      createElement("div", { className: "sugu-simple-title", text: "本日の検索回数の上限に達しました" }),
       createElement("div", {
         className: "sugu-simple-description",
-        text: "Sugu Proでは、検索回数を気にせず英語の検索体験を続けられます。"
+        children: [
+          createElement("div", { text: "iOS版Suguで広告を視聴すると、検索回数を追加できます。" }),
+          createElement("div", { text: "サブスクリプションに登録すれば、検索回数を気にせず利用できます。" })
+        ]
       }),
-      openButton,
-      backButton,
       createElement("div", {
-        className: "sugu-simple-footnote",
-        text: "Chrome拡張内で直接購入する処理はまだ接続していません。既存の案内先を開きます。"
-      })
+        className: "sugu-qr-card",
+        children: [
+          qrImage,
+          createElement("div", {
+            className: "sugu-simple-footnote",
+            text: "スマートフォンで読み取ってiOS版Suguを開いてください。"
+          })
+        ]
+      }),
+      backButton
     ]
   });
 }
@@ -577,6 +735,7 @@ function renderProInfoView() {
 function renderResult(result) {
   const wrapper = createElement("div", { className: "sugu-result" });
   const word = result.word ?? state.currentWord;
+  const saved = state.savedWord === cleanSelection(word).toLowerCase();
   wrapper.append(
     createElement("div", { className: "sugu-word", text: word }),
     renderPronunciationButton(word)
@@ -602,20 +761,30 @@ function renderResult(result) {
     wrapper.append(candidates);
   }
 
-  const saveButton = createElement("button", {
-    className: "sugu-button sugu-add-button",
-    text: state.hasToken ? "単語を保存" : "Sign in with Appleでログイン"
-  });
-  saveButton.addEventListener("click", () => {
-    if (!state.hasToken) {
-      void startAppleAuth();
-      return;
+  if (state.hasToken) {
+    const saveButton = createElement("button", {
+      className: `sugu-button sugu-add-button${saved ? " is-saved" : ""}`,
+      attributes: { type: "button" }
+    });
+    saveButton.disabled = state.saving || saved;
+    if (saved) {
+      saveButton.append(createCheckIcon());
     }
+    saveButton.append(
+      createElement("span", {
+        text: state.saving
+          ? "Adding..."
+          : saved
+            ? "Added to My List"
+            : "Add My List+"
+      })
+    );
+    saveButton.addEventListener("click", () => {
+      void saveCurrentWord();
+    });
 
-    void saveCurrentWord();
-  });
-
-  wrapper.append(createElement("div", { className: "sugu-actions", children: [saveButton] }));
+    wrapper.append(createElement("div", { className: "sugu-actions", children: [saveButton] }));
+  }
   return wrapper;
 }
 
@@ -671,6 +840,53 @@ function createVolumeIcon() {
   return svg;
 }
 
+function createCheckIcon() {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", "sugu-check-icon");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "2.4");
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("stroke-linejoin", "round");
+  svg.setAttribute("aria-hidden", "true");
+
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", "M20 6 9 17l-5-5");
+  svg.append(path);
+
+  return svg;
+}
+
+function createExternalTabIcon() {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", "sugu-external-tab-icon");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "2.2");
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("stroke-linejoin", "round");
+  svg.setAttribute("aria-hidden", "true");
+
+  const box = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  box.setAttribute("d", "M8 7H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-2");
+
+  const arrow = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  arrow.setAttribute("d", "M13 4h7v7");
+
+  const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  line.setAttribute("d", "M10 14 20 4");
+
+  svg.append(box, arrow, line);
+  return svg;
+}
+
+function buildQrImageUrl(url) {
+  const targetUrl = typeof url === "string" && url ? url : "https://apps.apple.com/app/id6767128244";
+  return `https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=10&data=${encodeURIComponent(targetUrl)}`;
+}
+
 async function search(word) {
   const trimmed = cleanSelection(word);
   if (!trimmed) {
@@ -680,10 +896,12 @@ async function search(word) {
 
   state.currentWord = trimmed;
   state.loading = true;
+  state.saving = false;
+  state.savedWord = "";
   state.result = null;
   state.lastSearchError = "";
   render();
-  setStatus("検索しています。");
+  setStatus("");
 
   const response = await sendMessage({ type: "SUGU_SEARCH", word: trimmed });
   state.loading = false;
@@ -697,6 +915,13 @@ async function search(word) {
     if (isGuestSearchLimitError(response)) {
       state.lastSearchError = response.error;
       state.appView = VIEW_GUEST_LIMIT_REACHED;
+      render();
+      return;
+    }
+
+    if (isUserSearchLimitError(response)) {
+      state.lastSearchError = response.error;
+      state.appView = VIEW_USER_LIMIT_REACHED;
       render();
       return;
     }
@@ -718,17 +943,25 @@ async function search(word) {
 
 async function saveCurrentWord() {
   const word = state.result?.word ?? state.currentWord;
+  state.saving = true;
+  render();
+  setStatus("");
   const response = await sendMessage({ type: "SUGU_SAVE", word });
+  state.saving = false;
   if (!response.ok) {
     if (response.authExpired) {
       state.hasToken = false;
       state.appView = state.hasGuestId ? VIEW_SEARCH : VIEW_LOGIN;
       render();
     }
-    setStatus(response.error, "error");
+    const suffix = response.status ? ` (${response.status})` : "";
+    render();
+    setStatus(`${response.error}${suffix}`, "error");
     return;
   }
-  setStatus("単語を保存しました。", "success");
+  state.savedWord = cleanSelection(word).toLowerCase();
+  render();
+  setStatus("");
 }
 
 async function startGuest() {
@@ -772,16 +1005,30 @@ function handleAuthCompleted() {
   setStatus("ログインしました。", "success");
 }
 
-async function openProLink() {
-  const response = await sendMessage({ type: "SUGU_OPEN_EXTERNAL", url: state.proUrl });
-  if (!response.ok) {
-    setStatus(response.error, "error");
-  }
+async function logout() {
+  await chrome.storage.local.remove(TOKEN_KEY);
+  state.hasToken = false;
+  state.settingsOpen = false;
+  state.saving = false;
+  state.savedWord = "";
+  state.lastSearchError = "";
+  state.appView = state.hasGuestId ? VIEW_SEARCH : VIEW_ONBOARDING;
+  render();
+  setStatus("ログアウトしました。", "success");
 }
 
 function isGuestSearchLimitError(response) {
   return (
     !state.hasToken &&
+    (response?.status === 429 ||
+      response?.code === "TOO_MANY_REQUESTS" ||
+      String(response?.error ?? "").includes("上限"))
+  );
+}
+
+function isUserSearchLimitError(response) {
+  return (
+    state.hasToken &&
     (response?.status === 429 ||
       response?.code === "TOO_MANY_REQUESTS" ||
       String(response?.error ?? "").includes("上限"))
@@ -809,6 +1056,13 @@ async function toggleTheme() {
 }
 
 async function toggleLayoutMode() {
+  if (!isDockedLayoutSupportedPage()) {
+    state.layoutMode = LAYOUT_FLOATING;
+    await chrome.storage.local.set({ [LAYOUT_KEY]: state.layoutMode });
+    render();
+    return;
+  }
+
   state.layoutMode = state.layoutMode === LAYOUT_DOCKED ? LAYOUT_FLOATING : LAYOUT_DOCKED;
   if (state.layoutMode === LAYOUT_DOCKED) {
     state.position = null;
@@ -822,6 +1076,7 @@ async function toggleLayoutMode() {
 
 function setInputValue(value) {
   state.currentWord = cleanSelection(value);
+  state.savedWord = "";
   render();
 }
 
@@ -848,6 +1103,11 @@ function setCollapsed(collapsed) {
     return;
   }
 
+  if (isNetflixPage()) {
+    scheduleNetflixResize();
+    return;
+  }
+
   if (isPrimeVideoPage()) {
     if (!state.collapsed) {
       schedulePrimeLayoutRetries();
@@ -869,6 +1129,7 @@ function setCollapsed(collapsed) {
 function handleFullscreenChange() {
   ensureRootMount();
   render();
+  scheduleNetflixResize();
   schedulePrimeLayoutRetries();
   scheduleYouTubeDockedLayoutRetries();
 }
@@ -892,11 +1153,17 @@ function getSuguHost() {
 }
 
 function syncPageLayout() {
+  if (!isDockedLayoutSupportedPage()) {
+    cleanupUnsupportedDockedLayout();
+    return;
+  }
+
   const wasDockedPage = Boolean(originalBodyStyles);
   const shouldDockPage =
     state.layoutMode === LAYOUT_DOCKED &&
     !state.collapsed &&
     !getFullscreenElement() &&
+    isNetflixPage() &&
     !isPrimeVideoPage() &&
     !isYouTubePage();
   document.documentElement.style.setProperty("--sugu-docked-width", DOCKED_WIDTH_CSS);
@@ -917,6 +1184,9 @@ function syncPageLayout() {
 
     document.body.style.marginRight = `calc(${DOCKED_WIDTH_CSS} + ${originalBodyStyles.computedMarginRight})`;
     document.body.style.maxWidth = `calc(100vw - ${DOCKED_WIDTH_CSS})`;
+    if (isNetflixPage()) {
+      scheduleNetflixResize();
+    }
     return;
   }
 
@@ -924,6 +1194,9 @@ function syncPageLayout() {
     document.body.style.marginRight = originalBodyStyles.marginRight;
     document.body.style.maxWidth = originalBodyStyles.maxWidth;
     originalBodyStyles = null;
+    if (isNetflixPage()) {
+      scheduleNetflixResize();
+    }
   }
 
   if (!shouldDockPage) {
@@ -942,6 +1215,7 @@ function syncFullscreenLayout() {
     fullscreenElement &&
     state.layoutMode === LAYOUT_DOCKED &&
     !state.collapsed &&
+    (isNetflixPage() || isDisneyPlusPage()) &&
     !isPrimeVideoPage() &&
     !isYouTubePage();
 
@@ -956,6 +1230,9 @@ function syncFullscreenLayout() {
     fullscreenElement.classList.add(FULLSCREEN_DOCKED_CLASS);
     fullscreenElement.classList.toggle(YOUTUBE_FULLSCREEN_DOCKED_CLASS, false);
     currentFullscreenHost = fullscreenElement;
+    if (isNetflixPage()) {
+      scheduleNetflixResize();
+    }
     return;
   }
 
@@ -964,7 +1241,41 @@ function syncFullscreenLayout() {
     currentFullscreenHost.classList.remove(YOUTUBE_FULLSCREEN_DOCKED_CLASS);
     currentFullscreenHost = null;
     resetYouTubeLayout();
+    if (isNetflixPage()) {
+      scheduleNetflixResize();
+    }
   }
+}
+
+function scheduleNetflixResize() {
+  if (!isNetflixPage()) {
+    clearNetflixResize();
+    return;
+  }
+
+  clearNetflixResize();
+
+  const notifyResize = () => {
+    window.dispatchEvent(new Event("resize"));
+    document.dispatchEvent(new Event("resize"));
+  };
+
+  window.requestAnimationFrame(() => {
+    notifyResize();
+    netflixResizeRetryTimer = window.setTimeout(() => {
+      notifyResize();
+      netflixResizeRetryTimer = window.setTimeout(notifyResize, 180);
+    }, 60);
+  });
+}
+
+function clearNetflixResize() {
+  if (!netflixResizeRetryTimer) {
+    return;
+  }
+
+  window.clearTimeout(netflixResizeRetryTimer);
+  netflixResizeRetryTimer = null;
 }
 
 function syncYouTubeLayout() {
@@ -1164,18 +1475,37 @@ function findYouTubeFullscreenHosts() {
   }
 
   return uniqueElements([
-    fullscreenElement.querySelector(".html5-video-container"),
-    fullscreenElement.querySelector("video.html5-main-video"),
-    fullscreenElement.querySelector(".ytp-caption-window-container"),
-    fullscreenElement.querySelector(".ytp-chrome-bottom")
+    findYouTubeFullscreenPlayerHost(fullscreenElement),
+    fullscreenElement.querySelector(".ytp-caption-window-container")
   ]);
+}
+
+function findYouTubeFullscreenPlayerHost(fullscreenElement) {
+  if (isYouTubePlayerHost(fullscreenElement)) {
+    return fullscreenElement;
+  }
+
+  return (
+    fullscreenElement.querySelector(".html5-video-player") ||
+    fullscreenElement.querySelector("#movie_player") ||
+    fullscreenElement
+  );
+}
+
+function isYouTubePlayerHost(host) {
+  return (
+    host?.classList?.contains("html5-video-player") ||
+    host?.id === "movie_player" ||
+    (Boolean(host?.querySelector?.("video.html5-main-video")) &&
+      Boolean(host?.querySelector?.(".ytp-chrome-bottom")))
+  );
 }
 
 function applyYouTubeDockStyle(host, isFullscreen) {
   const contentWidth = `calc(100vw - ${DOCKED_WIDTH_CSS})`;
-  host.style.width = contentWidth;
-  host.style.maxWidth = contentWidth;
-  host.style.boxSizing = "border-box";
+  host.style.setProperty("width", contentWidth, "important");
+  host.style.setProperty("max-width", contentWidth, "important");
+  host.style.setProperty("box-sizing", "border-box", "important");
 
   if (!isFullscreen) {
     if (host.matches("ytd-app, ytd-page-manager, ytd-watch-flexy, #page-manager, #columns, #primary, ytd-masthead, ytd-masthead #container, ytd-masthead #center, ytd-masthead #end, #related, #secondary, #secondary-inner, #chips-wrapper, #items")) {
@@ -1189,33 +1519,20 @@ function applyYouTubeDockStyle(host, isFullscreen) {
     return;
   }
 
-  if (host.matches("video.html5-main-video")) {
-    host.style.height = "100vh";
-    host.style.left = "0";
-    host.style.top = "0";
-    host.style.objectFit = "contain";
-    host.style.transform = "none";
-    return;
-  }
-
-  if (host.classList.contains("html5-video-container")) {
-    host.style.height = "100vh";
-    host.style.left = "0";
-    host.style.top = "0";
-    host.style.overflow = "hidden";
+  if (isYouTubePlayerHost(host)) {
+    host.style.setProperty("height", "100vh", "important");
+    host.style.setProperty("left", "0", "important");
+    host.style.setProperty("right", DOCKED_WIDTH_CSS, "important");
+    host.style.setProperty("top", "0", "important");
+    host.style.setProperty("overflow", "hidden", "important");
+    host.style.setProperty("position", "relative", "important");
     return;
   }
 
   if (host.classList.contains("ytp-caption-window-container")) {
-    host.style.left = "0";
-    host.style.right = DOCKED_WIDTH_CSS;
+    host.style.setProperty("left", "0", "important");
+    host.style.setProperty("right", DOCKED_WIDTH_CSS, "important");
     return;
-  }
-
-  if (host.classList.contains("ytp-chrome-bottom")) {
-    host.style.left = "12px";
-    host.style.width = `calc(100vw - ${DOCKED_WIDTH_CSS} - 24px)`;
-    host.style.maxWidth = `calc(100vw - ${DOCKED_WIDTH_CSS} - 24px)`;
   }
 }
 
@@ -1261,9 +1578,9 @@ function syncDisneyLayout() {
     };
   }
 
-  host.style.width = `calc(100vw - ${DOCKED_WIDTH_CSS})`;
-  host.style.maxWidth = `calc(100vw - ${DOCKED_WIDTH_CSS})`;
-  host.style.right = DOCKED_WIDTH_CSS;
+  host.style.setProperty("width", `calc(100vw - ${DOCKED_WIDTH_CSS})`, "important");
+  host.style.setProperty("max-width", `calc(100vw - ${DOCKED_WIDTH_CSS})`, "important");
+  host.style.setProperty("right", DOCKED_WIDTH_CSS, "important");
   host.style.boxSizing = "border-box";
   host.style.overflow = "hidden";
   currentDisneyHost = host;
@@ -1298,24 +1615,33 @@ function syncPrimeLayout() {
       right: host.style.right,
       left: host.style.left,
       top: host.style.top,
+      paddingRight: host.style.paddingRight,
       boxSizing: host.style.boxSizing,
       overflow: host.style.overflow,
       position: host.style.position
     };
   }
 
-  host.style.width = `calc(100vw - ${DOCKED_WIDTH_CSS})`;
-  host.style.maxWidth = `calc(100vw - ${DOCKED_WIDTH_CSS})`;
+  host.style.setProperty("width", `calc(100vw - ${DOCKED_WIDTH_CSS})`, "important");
+  host.style.setProperty("max-width", `calc(100vw - ${DOCKED_WIDTH_CSS})`, "important");
   if (getFullscreenElement()) {
-    host.style.height = "100vh";
-    host.style.left = "0";
-    host.style.top = "0";
-    host.style.position = host === getFullscreenElement() ? "relative" : host.style.position;
+    host.style.setProperty("height", "100vh", "important");
+    host.style.setProperty("left", "0", "important");
+    host.style.setProperty("top", "0", "important");
+    if (host === getFullscreenElement()) {
+      host.style.setProperty("position", "relative", "important");
+    }
   }
-  host.style.right = DOCKED_WIDTH_CSS;
+  host.style.setProperty("right", DOCKED_WIDTH_CSS, "important");
+  host.style.setProperty("padding-right", "0", "important");
   host.style.boxSizing = "border-box";
   host.style.overflow = "hidden";
   currentPrimeHost = host;
+
+  if (host === getFullscreenElement()) {
+    restorePrimeOverlayStyles();
+    return;
+  }
 
   syncPrimeOverlayLayout(host);
 }
@@ -1337,6 +1663,7 @@ function resetPrimeLayout() {
   currentPrimeHost.style.right = originalPrimeStyles.right;
   currentPrimeHost.style.left = originalPrimeStyles.left;
   currentPrimeHost.style.top = originalPrimeStyles.top;
+  currentPrimeHost.style.paddingRight = originalPrimeStyles.paddingRight;
   currentPrimeHost.style.boxSizing = originalPrimeStyles.boxSizing;
   currentPrimeHost.style.overflow = originalPrimeStyles.overflow;
   currentPrimeHost.style.position = originalPrimeStyles.position;
@@ -1357,30 +1684,18 @@ function syncPrimeOverlayLayout(videoHost) {
 
   for (const overlayHost of hosts) {
     rememberPrimeOverlayStyles(overlayHost);
-    const width = isPrimeScrubberElement(overlayHost)
-      ? `calc(100vw - ${DOCKED_WIDTH_CSS} - 24px)`
-      : `calc(100vw - ${DOCKED_WIDTH_CSS})`;
+    const width = `calc(100vw - ${DOCKED_WIDTH_CSS})`;
     overlayHost.style.setProperty("width", width, "important");
     overlayHost.style.setProperty("max-width", width, "important");
     overlayHost.style.setProperty("left", "0", "important");
     overlayHost.style.setProperty("right", DOCKED_WIDTH_CSS, "important");
+    overlayHost.style.setProperty("padding-right", "0", "important");
     overlayHost.style.setProperty("box-sizing", "border-box", "important");
     overlayHost.style.setProperty("min-width", "0", "important");
-    overlayHost.style.setProperty("overflow", "hidden", "important");
+    overlayHost.style.setProperty("overflow", "visible", "important");
   }
 
   currentPrimeOverlayHosts = hosts;
-}
-
-function isPrimeScrubberElement(element) {
-  const className = String(element.className ?? "");
-  return (
-    className.includes("f102imk2") ||
-    className.includes("f1jovyhs") ||
-    className.includes("fzu5eck") ||
-    className.includes("f19vh6ps") ||
-    className.includes("atvwebplayersdk-tick-mark-mask")
-  );
 }
 
 function rememberPrimeOverlayStyles(host) {
@@ -1394,6 +1709,7 @@ function rememberPrimeOverlayStyles(host) {
     minWidth: host.style.minWidth,
     left: host.style.left,
     right: host.style.right,
+    paddingRight: host.style.paddingRight,
     boxSizing: host.style.boxSizing,
     overflow: host.style.overflow
   });
@@ -1417,6 +1733,7 @@ function restoreRemovedPrimeOverlayHosts(nextHosts) {
     host.style.minWidth = styles.minWidth;
     host.style.left = styles.left;
     host.style.right = styles.right;
+    host.style.paddingRight = styles.paddingRight;
     host.style.boxSizing = styles.boxSizing;
     host.style.overflow = styles.overflow;
     originalPrimeOverlayStyles.delete(host);
@@ -1430,6 +1747,7 @@ function restorePrimeOverlayStyles() {
     host.style.minWidth = styles.minWidth;
     host.style.left = styles.left;
     host.style.right = styles.right;
+    host.style.paddingRight = styles.paddingRight;
     host.style.boxSizing = styles.boxSizing;
     host.style.overflow = styles.overflow;
   }
@@ -1461,6 +1779,17 @@ function clearPrimeLayoutRetries() {
 
   window.clearInterval(primeSyncRetryTimer);
   primeSyncRetryTimer = null;
+}
+
+function schedulePrimeQuickSync() {
+  if (!shouldDockPrimeLayout() || primeQuickSyncTimer) {
+    return;
+  }
+
+  primeQuickSyncTimer = window.setTimeout(() => {
+    primeQuickSyncTimer = null;
+    syncPrimeLayout();
+  }, 16);
 }
 
 function resetDisneyLayout() {
@@ -1524,6 +1853,14 @@ function shouldDockPrimeLayout() {
   );
 }
 
+function isDockedLayoutSupportedPage() {
+  return isNetflixPage() || isDisneyPlusPage() || isPrimeVideoPage() || isYouTubePage();
+}
+
+function isNetflixPage() {
+  return location.hostname.includes("netflix.com");
+}
+
 function isDisneyPlusPage() {
   return location.hostname.includes("disneyplus.com");
 }
@@ -1541,6 +1878,10 @@ function isYouTubePage() {
 
 function findPrimeVideoViewportHost() {
   const fullscreenElement = getFullscreenElement();
+  if (fullscreenElement) {
+    return findPrimeFullscreenUnifiedHost(fullscreenElement);
+  }
+
   const scope = fullscreenElement || document;
   const candidates = uniqueElements([
     scope.querySelector?.("[data-testid='web-player']"),
@@ -1557,6 +1898,45 @@ function findPrimeVideoViewportHost() {
   }) ?? null;
 }
 
+function findPrimeFullscreenUnifiedHost(fullscreenElement) {
+  const video = fullscreenElement.querySelector?.("video");
+  const controlSelectors = [
+    "[class*='f1g22xtc']",
+    "[class*='f1yxmn6p']",
+    "[class*='f15vgt2t']",
+    "[class*='atvwebplayersdk-playpause-button']",
+    "[class*='atvwebplayersdk-tick-mark-mask']",
+    "[role='slider']",
+    "[aria-valuenow]"
+  ];
+
+  if (!video) {
+    return fullscreenElement;
+  }
+
+  let host = video.parentElement;
+  while (host && host !== document.body && host !== document.documentElement) {
+    const hasControls = controlSelectors.some((selector) => Boolean(host.querySelector?.(selector)));
+    const rect = host.getBoundingClientRect();
+
+    if (
+      hasControls &&
+      rect.width > window.innerWidth * 0.55 &&
+      rect.height > window.innerHeight * 0.45
+    ) {
+      return host;
+    }
+
+    if (host === fullscreenElement) {
+      break;
+    }
+
+    host = host.parentElement;
+  }
+
+  return fullscreenElement;
+}
+
 function findPrimeFullscreenOverlayHosts(videoHost) {
   const fullscreenElement = getFullscreenElement();
   if (!fullscreenElement) {
@@ -1570,6 +1950,16 @@ function findPrimeFullscreenOverlayHosts(videoHost) {
     ...fullscreenElement.querySelectorAll("[class*='f102imk2']"),
     ...fullscreenElement.querySelectorAll("[class*='f124tp54']"),
     ...fullscreenElement.querySelectorAll("[class*='f3w9jrr']"),
+    ...fullscreenElement.querySelectorAll("[class*='f1g22xtc']"),
+    ...fullscreenElement.querySelectorAll("[class*='f1yxmn6p']"),
+    ...fullscreenElement.querySelectorAll("[class*='f1jfarhg']"),
+    ...fullscreenElement.querySelectorAll("[class*='f10760mo']"),
+    ...fullscreenElement.querySelectorAll("[class*='fkt4e8w']"),
+    ...fullscreenElement.querySelectorAll("[class*='f15vgt2t']"),
+    ...fullscreenElement.querySelectorAll("[class*='f1hy0e6n']"),
+    ...fullscreenElement.querySelectorAll("[class*='fsf06gz']"),
+    ...fullscreenElement.querySelectorAll("[class*='f8rqmpk']"),
+    ...fullscreenElement.querySelectorAll("[class*='f1o4uk5s']"),
     ...fullscreenElement.querySelectorAll("[class*='f10ec4mb3']"),
     ...fullscreenElement.querySelectorAll("[class*='f1oc4mb3']"),
     ...fullscreenElement.querySelectorAll("[class*='f1jovyhs']"),
@@ -1596,6 +1986,16 @@ function findPrimeFullscreenOverlayHosts(videoHost) {
         className.includes("f102imk2") ||
         className.includes("f124tp54") ||
         className.includes("f3w9jrr") ||
+        className.includes("f1g22xtc") ||
+        className.includes("f1yxmn6p") ||
+        className.includes("f1jfarhg") ||
+        className.includes("f10760mo") ||
+        className.includes("fkt4e8w") ||
+        className.includes("f15vgt2t") ||
+        className.includes("f1hy0e6n") ||
+        className.includes("fsf06gz") ||
+        className.includes("f8rqmpk") ||
+        className.includes("f1o4uk5s") ||
         className.includes("f10ec4mb3") ||
         className.includes("f1oc4mb3") ||
         className.includes("f1jovyhs") ||
@@ -1632,12 +2032,32 @@ function findPrimeFullscreenScrubberHosts() {
     return [];
   }
 
-  return uniqueElements([
+  const candidates = [
+    ...fullscreenElement.querySelectorAll("[class*='f1g22xtc']"),
+    ...fullscreenElement.querySelectorAll("[class*='f1yxmn6p']"),
+    ...fullscreenElement.querySelectorAll("[class*='f1jfarhg']"),
+    ...fullscreenElement.querySelectorAll("[class*='f10760mo']"),
+    ...fullscreenElement.querySelectorAll("[class*='fkt4e8w']"),
+    ...fullscreenElement.querySelectorAll("[class*='f15vgt2t']"),
+    ...fullscreenElement.querySelectorAll("[class*='f1hy0e6n']"),
+    ...fullscreenElement.querySelectorAll("[class*='fsf06gz']"),
+    ...fullscreenElement.querySelectorAll("[class*='f8rqmpk']"),
+    ...fullscreenElement.querySelectorAll("[class*='f1o4uk5s']"),
+    ...fullscreenElement.querySelectorAll("[class*='fcf8rcx']"),
+    ...fullscreenElement.querySelectorAll("[class*='f102imk2']"),
     ...fullscreenElement.querySelectorAll("[class*='atvwebplayersdk-tick-mark-mask']"),
     ...fullscreenElement.querySelectorAll("[class*='f1jovyhs']"),
     ...fullscreenElement.querySelectorAll("[class*='fzu5eck']"),
     ...fullscreenElement.querySelectorAll("[class*='f19vh6ps']")
-  ].filter((element) => {
+  ].map((element) =>
+    element.closest?.("[class*='f1g22xtc']") ||
+    element.closest?.("[class*='f15vgt2t']") ||
+    element.closest?.("[class*='fcf8rcx']") ||
+    element.parentElement ||
+    element
+  );
+
+  return uniqueElements(candidates.filter((element) => {
     const rect = element.getBoundingClientRect();
     return rect.width > window.innerWidth * 0.4;
   }));
@@ -1679,7 +2099,8 @@ function getFullscreenElement() {
 }
 
 function startDrag(event) {
-  if (event.button !== 0 || state.layoutMode === LAYOUT_DOCKED || event.target.closest("button")) {
+  const isEffectivelyDocked = isDockedLayoutSupportedPage() && state.layoutMode === LAYOUT_DOCKED;
+  if (event.button !== 0 || isEffectivelyDocked || event.target.closest("button")) {
     return;
   }
 
@@ -1697,10 +2118,11 @@ function startDrag(event) {
   const onMove = (moveEvent) => {
     const nextX = clamp(moveEvent.clientX - offsetX, 8, window.innerWidth - rect.width - 8);
     const nextY = clamp(moveEvent.clientY - offsetY, 8, window.innerHeight - rect.height - 8);
-    state.position = { x: nextX, y: nextY };
-    root.style.left = `${nextX}px`;
+    const nextRight = window.innerWidth - nextX - rect.width;
+    state.position = { right: nextRight, y: nextY };
+    root.style.left = "auto";
     root.style.top = `${nextY}px`;
-    root.style.right = "auto";
+    root.style.right = `${nextRight}px`;
     root.style.bottom = "auto";
   };
 
