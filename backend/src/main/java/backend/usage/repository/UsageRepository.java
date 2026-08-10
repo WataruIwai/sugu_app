@@ -191,22 +191,6 @@ public class UsageRepository {
                         () -> new RuntimeException("Failed to load guest usage after conflict")));
   }
 
-  public void addBonusCountToGuestUsage(GuestUsageCount usage) {
-    String sql =
-        """
-            UPDATE guest_search_usage
-            SET bonus_count = bonus_count + :bonusAmount
-            WHERE guest_id = :guestId AND usage_date = :usageDate
-        """;
-
-    jdbcClient
-        .sql(sql)
-        .param("bonusAmount", bonusAmount)
-        .param("guestId", usage.getGuestId())
-        .param("usageDate", java.sql.Date.valueOf(usage.getUsageDate()))
-        .update();
-  }
-
   public boolean consumeGuestUsage(GuestUsageCount usage) {
     String sql =
         """
@@ -244,43 +228,6 @@ public class UsageRepository {
         .update();
   }
 
-  public boolean consumeGuestBonusUsage(GuestUsageCount usage) {
-    String sql =
-        """
-            UPDATE guest_search_usage
-            SET bonus_used_count = bonus_used_count + 1
-            WHERE guest_id = :guestId
-            AND usage_date = :usageDate
-            AND bonus_used_count < bonus_count
-        """;
-
-    int affectedRows =
-        jdbcClient
-            .sql(sql)
-            .param("guestId", usage.getGuestId())
-            .param("usageDate", java.sql.Date.valueOf(usage.getUsageDate()))
-            .update();
-
-    return affectedRows == 1;
-  }
-
-  public void rollbackGuestBonusUsage(GuestUsageCount usage) {
-    String sql =
-        """
-            UPDATE guest_search_usage
-            SET bonus_used_count = bonus_used_count - 1
-            WHERE guest_id = :guestId
-            AND usage_date = :usageDate
-            AND bonus_used_count > 0
-        """;
-
-    jdbcClient
-        .sql(sql)
-        .param("guestId", usage.getGuestId())
-        .param("usageDate", java.sql.Date.valueOf(usage.getUsageDate()))
-        .update();
-  }
-
   private UserUsageCount toUserUsageCount(ResultSet rs) throws java.sql.SQLException {
     return new UserUsageCount(
         rs.getLong("id"),
@@ -298,8 +245,6 @@ public class UsageRepository {
         rs.getString("guest_id"),
         rs.getDate("usage_date").toLocalDate(),
         rs.getInt("base_limit"),
-        rs.getInt("bonus_count"),
-        rs.getInt("used_count"),
-        rs.getInt("bonus_used_count"));
+        rs.getInt("used_count"));
   }
 }

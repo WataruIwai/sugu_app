@@ -44,24 +44,13 @@ class UsageRepositoryTest {
 
   @Test
   void consumeGuestUsageDoesNotExceedBaseLimitWhenRequestsRunConcurrently() throws Exception {
-    GuestUsageCount usage = insertGuestUsage(1, 0, 0, 0);
+    GuestUsageCount usage = insertGuestUsage(1, 0);
 
     List<Boolean> results =
         runTwoRequestsAtSameTime(() -> usageRepository.consumeGuestUsage(usage));
 
     assertEquals(1, results.stream().filter(Boolean::booleanValue).count());
     assertEquals(1, getGuestUsageCountColumn("used_count"));
-  }
-
-  @Test
-  void consumeGuestBonusUsageDoesNotExceedBonusCountWhenRequestsRunConcurrently() throws Exception {
-    GuestUsageCount usage = insertGuestUsage(0, 1, 0, 0);
-
-    List<Boolean> results =
-        runTwoRequestsAtSameTime(() -> usageRepository.consumeGuestBonusUsage(usage));
-
-    assertEquals(1, results.stream().filter(Boolean::booleanValue).count());
-    assertEquals(1, getGuestUsageCountColumn("bonus_used_count"));
   }
 
   private List<Boolean> runTwoRequestsAtSameTime(ThrowingBooleanSupplier request) throws Exception {
@@ -92,23 +81,20 @@ class UsageRepositoryTest {
     return request.getAsBoolean();
   }
 
-  private GuestUsageCount insertGuestUsage(
-      int baseLimit, int bonusCount, int usedCount, int bonusUsedCount) {
+  private GuestUsageCount insertGuestUsage(int baseLimit, int usedCount) {
     return jdbcClient
         .sql(
             """
             INSERT INTO guest_search_usage
-              (guest_id, usage_date, base_limit, bonus_count, used_count, bonus_used_count)
+              (guest_id, usage_date, base_limit, used_count)
             VALUES
-              (:guestId, :usageDate, :baseLimit, :bonusCount, :usedCount, :bonusUsedCount)
-            RETURNING id, guest_id, usage_date, base_limit, bonus_count, used_count, bonus_used_count
+              (:guestId, :usageDate, :baseLimit, :usedCount)
+            RETURNING id, guest_id, usage_date, base_limit, used_count
             """)
         .param("guestId", TEST_GUEST_ID)
         .param("usageDate", java.sql.Date.valueOf(TODAY))
         .param("baseLimit", baseLimit)
-        .param("bonusCount", bonusCount)
         .param("usedCount", usedCount)
-        .param("bonusUsedCount", bonusUsedCount)
         .query(
             (rs, rowNum) ->
                 new GuestUsageCount(
@@ -116,9 +102,7 @@ class UsageRepositoryTest {
                     rs.getString("guest_id"),
                     rs.getDate("usage_date").toLocalDate(),
                     rs.getInt("base_limit"),
-                    rs.getInt("bonus_count"),
-                    rs.getInt("used_count"),
-                    rs.getInt("bonus_used_count")))
+                    rs.getInt("used_count")))
         .single();
   }
 

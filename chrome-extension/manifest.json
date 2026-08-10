@@ -3,8 +3,20 @@
   "name": "Sugu",
   "version": "0.1.0",
   "description": "Search and save words to Sugu from any web page.",
+  "icons": {
+    "16": "assets/icon-16.png",
+    "32": "assets/icon-32.png",
+    "48": "assets/icon-48.png",
+    "128": "assets/icon-128.png"
+  },
   "action": {
-    "default_title": "Sugu"
+    "default_title": "Sugu",
+    "default_icon": {
+      "16": "assets/icon-16.png",
+      "32": "assets/icon-32.png",
+      "48": "assets/icon-48.png",
+      "128": "assets/icon-128.png"
+    }
   },
   "commands": {
     "toggle-panel": {
@@ -27,7 +39,7 @@
     }
   ],
   "permissions": ["activeTab", "contextMenus", "scripting", "storage"],
-  "host_permissions": ["https://sugu-app-dev.onrender.com/*"],
+  "host_permissions": ["https://vocab-app-7lb5.onrender.com/*"],
   "web_accessible_resources": [
     {
       "resources": ["assets/sugu-logo.svg"],

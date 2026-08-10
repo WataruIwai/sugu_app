@@ -10,15 +10,19 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
   private final JwtAuthenticationFilter jwtAuthenticationFilter;
+  private final SearchRateLimitFilter searchRateLimitFilter;
 
-  public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+  public SecurityConfig(
+      JwtAuthenticationFilter jwtAuthenticationFilter, SearchRateLimitFilter searchRateLimitFilter) {
     this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+    this.searchRateLimitFilter = searchRateLimitFilter;
   }
 
   @Bean
   public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
     return http.csrf(csrf -> csrf.disable())
         .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+        .addFilterAfter(searchRateLimitFilter, JwtAuthenticationFilter.class)
         .build();
   }
 }

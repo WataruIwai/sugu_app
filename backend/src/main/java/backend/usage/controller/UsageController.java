@@ -22,8 +22,6 @@ public class UsageController {
     if (searchContext.getUserId() != null) {
       Long userId = searchContext.getUserId();
       usageService.addBonusSearchCountToUser(userId);
-    } else if (searchContext.getGuestId() != null) {
-      usageService.addBonusSearchCountToGuest(searchContext.getGuestId());
     } else {
       throw new UnauthorizedException("Authentication required");
     }

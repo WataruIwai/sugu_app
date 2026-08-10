@@ -34,7 +34,6 @@ public class UserUsageCount implements UsageCount {
     return baseLimit - usedCount;
   }
 
-  @Override
   public int getRemainingBonusCount() {
     return bonusCount - bonusUsedCount;
   }

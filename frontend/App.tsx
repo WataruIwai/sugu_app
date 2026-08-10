@@ -645,6 +645,14 @@ export default function App() {
 
                 if (isSearchLimitError) {
                     setSearchErrorMessage(null);
+                    if (!token) {
+                        openGuestUpgradePrompt(
+                            serverMessage,
+                            "無料のアカウントを作成すると、登録ユーザー向けの検索回数を利用できます。",
+                        );
+                        return;
+                    }
+
                     openSearchBonusPrompt(
                         serverMessage,
                         canUseRewardedSearchBonusAd()
@@ -740,11 +748,14 @@ export default function App() {
     };
 
     const grantSearchBonus = async () => {
+        if (!token) {
+            throw new Error("ログインが必要です。");
+        }
+
         const response = await fetch(`${API_BASE_URL}/api/v1/usage/bonus`, {
             method: "POST",
             headers: {
-                ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                ...(!token && guestId ? { "X-Guest-Id": guestId } : {}),
+                Authorization: `Bearer ${token}`,
             },
         });
 

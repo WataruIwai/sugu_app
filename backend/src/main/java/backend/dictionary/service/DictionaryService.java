@@ -116,10 +116,6 @@ public class DictionaryService {
       if (usageRepository.consumeGuestUsage(guestUsage)) {
         return ConsumedUsageType.BASE;
       }
-
-      if (usageRepository.consumeGuestBonusUsage(guestUsage)) {
-        return ConsumedUsageType.BONUS;
-      }
     } else {
       UserUsageCount userUsage = (UserUsageCount) usage;
       if (usageRepository.consumeUserUsage(userUsage)) {
@@ -142,11 +138,7 @@ public class DictionaryService {
 
     if (searchContext.getGuestId() != null) {
       GuestUsageCount guestUsage = (GuestUsageCount) usage;
-      if (consumedUsageType == ConsumedUsageType.BASE) {
-        usageRepository.rollbackGuestUsage(guestUsage);
-      } else {
-        usageRepository.rollbackGuestBonusUsage(guestUsage);
-      }
+      usageRepository.rollbackGuestUsage(guestUsage);
     } else {
       UserUsageCount userUsage = (UserUsageCount) usage;
       if (consumedUsageType == ConsumedUsageType.BASE) {

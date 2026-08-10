@@ -39,7 +39,7 @@ class DictionaryServiceTest {
   @InjectMocks DictionaryService dictionaryService;
 
   private GuestUsageCount guestUsage(String guestId) {
-    return new GuestUsageCount(1L, guestId, LocalDate.now(), 3, 0, 1, 0);
+    return new GuestUsageCount(1L, guestId, LocalDate.now(), 3, 1);
   }
 
   private UserUsageCount userUsage(long userId) {
@@ -91,12 +91,10 @@ class DictionaryServiceTest {
     String guestId = "guest-test";
     SearchContext searchContext = SearchContext.forGuest(guestId);
 
-    GuestUsageCount usage = new GuestUsageCount(1L, guestId, LocalDate.now(), 3, 0, 3, 0);
-    ;
+    GuestUsageCount usage = new GuestUsageCount(1L, guestId, LocalDate.now(), 3, 3);
 
     when(usageRepository.getGuestUsage(guestId)).thenReturn(Optional.of(usage));
     when(usageRepository.consumeGuestUsage(usage)).thenReturn(false);
-    when(usageRepository.consumeGuestBonusUsage(usage)).thenReturn(false);
 
     // Act & Assert
     assertThrows(
@@ -106,33 +104,6 @@ class DictionaryServiceTest {
     verify(dictionaryRepository, never()).queryWordData(anyString());
     verify(openAiClient, never()).fetchWordData(anyString());
     verify(dictionaryWriteService, never()).createWordDataWithEntries(anyString(), anyList());
-  }
-
-  @Test
-  void searchWhenBaseLimitReachedButBonusAvailable() {
-    // Arrange
-    String guestId = "guest-test";
-    SearchContext searchContext = SearchContext.forGuest(guestId);
-    GuestUsageCount usage = guestUsage(guestId);
-    OpenAiResponse openAiResponse = successOpenAiResponse("apple");
-
-    when(usageRepository.getGuestUsage(guestId)).thenReturn(Optional.of(usage));
-    when(usageRepository.consumeGuestUsage(usage)).thenReturn(false);
-    when(usageRepository.consumeGuestBonusUsage(usage)).thenReturn(true);
-    when(dictionaryRepository.queryWordData("apple")).thenReturn(Optional.empty());
-    when(openAiClient.fetchWordData("apple")).thenReturn(openAiResponse);
-
-    // Act
-    WordResponse response = dictionaryService.getWordData("apple", searchContext);
-
-    // Assert
-    assertEquals("SUCCESS", response.getStatus());
-    assertEquals("apple", response.getWord());
-
-    verify(usageRepository).consumeGuestUsage(usage);
-    verify(usageRepository).consumeGuestBonusUsage(usage);
-    verify(openAiClient).fetchWordData("apple");
-    verify(dictionaryWriteService).createWordDataWithEntries("apple", openAiResponse.getEntries());
   }
 
   @Test
@@ -156,7 +127,6 @@ class DictionaryServiceTest {
     assertEquals("apple", response.getWord());
 
     verify(usageRepository).consumeGuestUsage(usage);
-    verify(usageRepository, never()).consumeGuestBonusUsage(usage);
     verify(openAiClient).fetchWordData("apple");
     verify(dictionaryWriteService).createWordDataWithEntries("apple", openAiResponse.getEntries());
   }
