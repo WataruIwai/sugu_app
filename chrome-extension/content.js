@@ -481,19 +481,21 @@ function render() {
   searchRow.append(input, searchButton);
   body.append(searchRow);
 
-  const selectedButton = createElement("button", {
-    className: "sugu-button sugu-secondary-button",
-    text: "選択中の単語を入れる"
-  });
-  selectedButton.addEventListener("click", () => {
-    const word = cleanSelection(window.getSelection()?.toString() ?? "");
-    if (word) {
-      setInputValue(word);
-    } else {
-      setStatus("選択中の単語がありません。", "error");
-    }
-  });
-  body.append(createElement("div", { className: "sugu-actions", children: [selectedButton] }));
+  if (!isVideoServicePage()) {
+    const selectedButton = createElement("button", {
+      className: "sugu-button sugu-secondary-button",
+      text: "選択中の単語を入れる"
+    });
+    selectedButton.addEventListener("click", () => {
+      const word = cleanSelection(window.getSelection()?.toString() ?? "");
+      if (word) {
+        setInputValue(word);
+      } else {
+        setStatus("選択中の単語がありません。", "error");
+      }
+    });
+    body.append(createElement("div", { className: "sugu-actions", children: [selectedButton] }));
+  }
 
   const status = createElement("div", { className: "sugu-status", attributes: { "data-sugu-status": "true" } });
   body.append(status);
@@ -1855,6 +1857,10 @@ function shouldDockPrimeLayout() {
 
 function isDockedLayoutSupportedPage() {
   return isNetflixPage() || isDisneyPlusPage() || isPrimeVideoPage() || isYouTubePage();
+}
+
+function isVideoServicePage() {
+  return isDockedLayoutSupportedPage();
 }
 
 function isNetflixPage() {
