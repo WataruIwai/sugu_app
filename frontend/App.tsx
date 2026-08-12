@@ -8,11 +8,13 @@ import {
 } from "expo-tracking-transparency";
 
 import {
+    getChromeExtensionNoticeDismissed,
     getAttPermissionRequested,
     deleteAuthToken,
     getGuestId,
     getAuthToken,
     getOnboardingCompleted,
+    saveChromeExtensionNoticeDismissed,
     saveAttPermissionRequested,
     saveGuestId,
     saveAuthToken,
@@ -184,6 +186,8 @@ export default function App() {
     const [searchBonusPromptErrorMessage, setSearchBonusPromptErrorMessage] =
         useState<string | null>(null);
     const [attCheckCompleted, setAttCheckCompleted] = useState(false);
+    const [chromeExtensionNoticeVisible, setChromeExtensionNoticeVisible] =
+        useState(false);
 
     const authenticated = useMemo(() => Boolean(token), [token]);
     const guestMode = useMemo(
@@ -193,6 +197,15 @@ export default function App() {
 
     const buildGuestId = () =>
         `guest_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
+
+    const handleCloseChromeExtensionNotice = () => {
+        setChromeExtensionNoticeVisible(false);
+    };
+
+    const handleDismissChromeExtensionNoticePermanently = async () => {
+        setChromeExtensionNoticeVisible(false);
+        await saveChromeExtensionNoticeDismissed();
+    };
 
     const buildSuguWidgetWord = async (
         word: WordItem,
@@ -931,6 +944,12 @@ export default function App() {
                 const storedToken = await getAuthToken();
                 const storedGuestId = await getGuestId();
                 const onboardingCompleted = await getOnboardingCompleted();
+                const chromeExtensionNoticeDismissed =
+                    await getChromeExtensionNoticeDismissed();
+
+                setChromeExtensionNoticeVisible(
+                    chromeExtensionNoticeDismissed !== "true",
+                );
 
                 if (storedGuestId) {
                     setGuestId(storedGuestId);
@@ -1107,6 +1126,15 @@ export default function App() {
                 menuOpen={listMenuOpen}
                 onToggleMenu={() => setListMenuOpen((current) => !current)}
                 onLogout={handleLogout}
+                chromeExtensionNoticeVisible={
+                    Boolean(token) && chromeExtensionNoticeVisible
+                }
+                onCloseChromeExtensionNotice={
+                    handleCloseChromeExtensionNotice
+                }
+                onDismissChromeExtensionNoticePermanently={
+                    handleDismissChromeExtensionNoticePermanently
+                }
             />
         );
     }
@@ -1149,6 +1177,15 @@ export default function App() {
                 }
                 onWatchSearchBonusAd={handleWatchSearchBonusAd}
                 onOpenPro={() => handleOpenPro("search")}
+                chromeExtensionNoticeVisible={
+                    guestMode && chromeExtensionNoticeVisible
+                }
+                onCloseChromeExtensionNotice={
+                    handleCloseChromeExtensionNotice
+                }
+                onDismissChromeExtensionNoticePermanently={
+                    handleDismissChromeExtensionNoticePermanently
+                }
             />
         );
     }

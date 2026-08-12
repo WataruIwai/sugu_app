@@ -3,6 +3,7 @@ import { FlatList, ListRenderItem } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import styled from "styled-components/native";
 
+import { ChromeExtensionNoticeCard } from "../components/ChromeExtensionNoticeCard";
 import { ScreenLayout } from "../layout/ScreenLayout";
 import { WORD_DISPLAY_FONT_FAMILY } from "../styles/fonts";
 import { WordItem } from "../types";
@@ -23,6 +24,9 @@ type VocabularyListPageProps = {
     menuOpen: boolean;
     onToggleMenu: () => void;
     onLogout: () => void;
+    chromeExtensionNoticeVisible: boolean;
+    onCloseChromeExtensionNotice: () => void;
+    onDismissChromeExtensionNoticePermanently: () => void;
 };
 
 export const VocabularyListPage = ({
@@ -41,6 +45,9 @@ export const VocabularyListPage = ({
     menuOpen,
     onToggleMenu,
     onLogout,
+    chromeExtensionNoticeVisible,
+    onCloseChromeExtensionNotice,
+    onDismissChromeExtensionNoticePermanently,
 }: VocabularyListPageProps) => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [actionWord, setActionWord] = useState<WordItem | null>(null);
@@ -267,6 +274,14 @@ export const VocabularyListPage = ({
         >
             <ListWrap>
                 {errorMessage ? <ErrorText>{errorMessage}</ErrorText> : null}
+                {chromeExtensionNoticeVisible ? (
+                    <ChromeExtensionNoticeCard
+                        onClose={onCloseChromeExtensionNotice}
+                        onDismissPermanently={
+                            onDismissChromeExtensionNoticePermanently
+                        }
+                    />
+                ) : null}
                 <ListSearchTrack>
                     <ListSearchInput
                         autoCapitalize="none"
@@ -345,7 +360,7 @@ const WordListItem = React.memo(
 
 const FixedMenuRow = styled.View<{ $hasBadge: boolean }>`
     flex-direction: row;
-    justify-content: ${(props) =>
+    justify-content: ${(props: { $hasBadge: boolean }) =>
         props.$hasBadge ? "space-between" : "flex-end"};
     align-items: center;
     padding-right: 14px;
