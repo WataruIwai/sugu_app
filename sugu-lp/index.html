@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sugu — 英語に集中したまま、調べられる。</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#111111;
+    --ink-soft:#5a5a58;
+    --paper:#ffffff;
+    --hair:#e6e6e4;
+    --wash:#fafaf9;
+    --content-max:1440px;
+    --side-pad:clamp(20px,6vw,92px);
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Helvetica Neue",Helvetica,Arial,"Noto Sans JP","Hiragino Sans",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;}
+  img,video{ max-width:100%; display:block; }
+
+  .wrap{
+    max-width:var(--content-max);
+    margin:0 auto;
+    padding:0 var(--side-pad);
+  }
+
+  /* ---------- Header ---------- */
+  header{
+    position:fixed; top:0; left:0; right:0; z-index:50;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:26px var(--side-pad);
+    background:rgba(255,255,255,0.88);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid transparent;
+    transition:border-color .3s ease;
+  }
+  header.scrolled{border-bottom-color:var(--hair);}
+  .logo{
+    font-weight:800;
+    font-size:19px;
+    letter-spacing:0.01em;
+  }
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center;
+    padding:12px 24px;
+    border-radius:999px;
+    font-weight:700;
+    font-size:14px;
+    letter-spacing:0.01em;
+    background:var(--ink);
+    color:var(--paper);
+    text-decoration:none;
+    white-space:nowrap;
+    border:none;
+    transition:opacity .18s ease;
+  }
+  .btn:hover{ opacity:.82; }
+  header .btn{ padding:10px 22px; font-size:13.5px; }
+
+  /* ---------- Hero ---------- */
+  .hero{
+    padding-top:212px;
+    padding-bottom:0;
+  }
+  .hero h1{
+    margin:0;
+    font-weight:800;
+    line-height:1.28;
+    letter-spacing:0.01em;
+    font-size:clamp(26px, 3.6vw, 56px);
+    white-space:nowrap;
+  }
+  .hero p.sub{
+    margin:22px 0 0;
+    max-width:520px;
+    color:var(--ink-soft);
+    font-size:16px;
+    line-height:1.8;
+  }
+  .hero p.note{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    margin:12px 0 0;
+    color:#8a8a86;
+    font-size:12.5px;
+    line-height:1.7;
+  }
+  .hero p.note .note-mark{
+    line-height:1;
+    transform:translateY(-1.5px);
+  }
+  .hero-cta{ margin-top:34px; }
+
+  /* ---------- Media frame (plain, no browser chrome) ---------- */
+  .media-frame{
+    border-radius:14px;
+    overflow:hidden;
+    background:#000;
+    border:1px solid rgba(0,0,0,0.08);
+  }
+  .media-frame video{
+    width:100%;
+    height:auto;
+    background:#000;
+    display:block;
+    transform:translateZ(0);
+    backface-visibility:hidden;
+  }
+
+  /* ---------- Feature row: media + text side by side ---------- */
+  .feature-row{
+    display:flex;
+    align-items:center;
+    gap:clamp(32px,5vw,72px);
+    padding:90px 0 130px;
+  }
+  .feature-row .col-media{ flex:1 1 66%; min-width:0; }
+  .feature-row .col-text{ flex:1 1 28%; min-width:0; }
+  .feature-row h2{
+    font-weight:800;
+    font-size:clamp(22px, 2.2vw, 28px);
+    line-height:1.5;
+    margin:0 0 18px;
+  }
+  .line-keep{ display:inline-block; }
+  .feature-row .col-text p{
+    color:var(--ink-soft);
+    font-size:15px;
+    line-height:1.85;
+    margin:0 0 6px;
+    max-width:360px;
+  }
+
+  /* ---------- Reading section (heading full width + 2-col gallery) ---------- */
+  .reading-section{ padding:0 0 140px; border-top:1px solid var(--hair); padding-top:120px; }
+  .reading-section h2{
+    font-weight:800;
+    font-size:clamp(22px, 2.2vw, 28px);
+    line-height:1.5;
+    margin:0 0 18px;
+  }
+  .reading-section .lead p{
+    color:var(--ink-soft);
+    font-size:15px;
+    line-height:1.85;
+    margin:0;
+    max-width:640px;
+  }
+  .gallery{
+    display:flex;
+    gap:32px;
+    margin-top:56px;
+  }
+  .gallery .item{ flex:1 1 0; min-width:0; }
+  .gallery .item .cap{
+    font-size:13.5px;
+    font-weight:700;
+    margin-bottom:14px;
+  }
+  .gallery .media-frame{
+    border-radius:14px;
+    overflow:hidden;
+    background:#fff;
+    border:1px solid rgba(0,0,0,0.08);
+  }
+  .gallery .media-frame video{
+    width:100%;
+    height:auto;
+    display:block;
+    background:#fff;
+  }
+
+  /* ---------- Platform row ---------- */
+  .platform-section{
+    padding:0 0 150px;
+    border-top:1px solid var(--hair);
+    padding-top:120px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:clamp(60px,11vw,168px);
+    flex-wrap:wrap;
+  }
+  .platform-section h2{
+    font-weight:800;
+    font-size:clamp(22px, 2.2vw, 28px);
+    line-height:1.5;
+    margin:0 0 16px;
+  }
+  .platform-section p{
+    color:var(--ink-soft);
+    font-size:15px;
+    line-height:1.85;
+    margin:0;
+    max-width:420px;
+  }
+  .qr-card{ text-align:center; flex:0 0 auto; }
+  .qr-card .qr-label{
+    font-size:13px; font-weight:700; margin-bottom:12px;
+  }
+  .qr-card .qr-box{
+    width:184px; height:184px;
+    border-radius:14px;
+    background:var(--wash);
+    border:1px solid var(--hair);
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+  }
+  .qr-card .qr-box img{ width:100%; height:100%; object-fit:contain; }
+
+  /* ---------- Closing CTA ---------- */
+  .closing{
+    padding:40px 0 180px;
+    text-align:center;
+  }
+  .closing h2{
+    font-weight:800;
+    font-size:clamp(30px, 4.2vw, 52px);
+    line-height:1.35;
+    margin:0 0 40px;
+  }
+
+  /* ---------- Footer (designed independently) ---------- */
+  footer{
+    border-top:1px solid var(--hair);
+    padding:56px 0 40px;
+  }
+  footer .footer-top{
+    display:flex;
+    justify-content:space-between;
+    gap:40px;
+    flex-wrap:wrap;
+    padding-bottom:44px;
+  }
+  footer .footer-logo{
+    font-weight:800;
+    font-size:20px;
+    margin-bottom:14px;
+  }
+  footer .footer-tagline{
+    color:var(--ink-soft);
+    font-size:13.5px;
+    line-height:1.8;
+    max-width:280px;
+  }
+  footer .footer-col-title{
+    font-size:12.5px;
+    font-weight:700;
+    color:#a8a8a4;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    margin-bottom:16px;
+  }
+  footer .footer-links{
+    display:flex;
+    flex-direction:column;
+    gap:11px;
+  }
+  footer .footer-links a{
+    font-size:13.5px;
+    color:var(--ink-soft);
+    text-decoration:none;
+  }
+  footer .footer-links a:hover{ color:var(--ink); }
+  footer .footer-cols{
+    display:flex;
+    gap:clamp(40px,8vw,120px);
+  }
+  footer .footer-bottom{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:12px;
+    padding-top:28px;
+    border-top:1px solid var(--hair);
+  }
+  footer .fine{ font-size:12px; color:#a8a8a4; }
+
+  /* ---------- Reveal ---------- */
+  .reveal{
+    opacity:0;
+    transform:translateY(20px);
+    transition:opacity .8s cubic-bezier(.2,.7,.2,1), transform .8s cubic-bezier(.2,.7,.2,1);
+  }
+  .reveal.in{ opacity:1; transform:translateY(0); }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width:640px){
+    .hero h1{ white-space:normal; font-size:clamp(24px,7vw,34px); }
+  }
+  @media (max-width:900px){
+    .hero{ padding-top:150px; }
+    .feature-row{ flex-direction:column; align-items:stretch; padding:60px 0 90px; }
+    .feature-row .col-text p{ max-width:none; }
+    .reading-section{ padding-top:80px; padding-bottom:100px; }
+    .gallery{ flex-direction:column; }
+    .platform-section{ flex-direction:column; align-items:flex-start; padding-top:80px; padding-bottom:110px; }
+    .platform-section .qr-card{ align-self:center; }
+    .closing{ padding:20px 0 120px; }
+    footer .footer-cols{ gap:48px; }
+  }
+</style>
+</head>
+<body>
+
+<header id="siteHeader">
+  <div class="logo">Sugu</div>
+  <a class="btn" href="https://chromewebstore.google.com/detail/Sugu/jamcdndanlnpjokhkdmgfhjcgcicglcg" target="_blank" rel="noopener noreferrer">Chromeに追加</a>
+</header>
+
+<main class="wrap">
+
+  <!-- ===================== HERO ===================== -->
+  <section class="hero">
+    <h1 class="reveal">英語に集中したまま、調べられる。</h1>
+    <p class="sub reveal">タブを切り替えず、動画やWebページを見ながら英単語・熟語を検索。</p>
+    <p class="note reveal"><span class="note-mark">※</span><span>追加後は、開いているページを一度リロードするとSuguが表示されます。</span></p>
+    <div class="hero-cta reveal">
+      <a class="btn" id="install" href="https://chromewebstore.google.com/detail/Sugu/jamcdndanlnpjokhkdmgfhjcgcicglcg" target="_blank" rel="noopener noreferrer">Chromeに追加</a>
+    </div>
+  </section>
+
+  <!-- ===================== FEATURE 1: 動画 (hero visual doubles as this feature's image) ===================== -->
+  <section class="feature-row">
+    <div class="col-media reveal">
+      <div class="media-frame">
+        <video class="auto-video feature-video" src="assets/video-scene.mp4" muted loop playsinline preload="metadata"></video>
+      </div>
+    </div>
+    <div class="col-text reveal">
+      <h2><span class="line-keep">動画を見る流れを、</span><span class="line-keep">そのままに。</span></h2>
+      <p>動画とSuguを並べて表示。</p>
+      <p>分からない単語や熟語があっても、タブを切り替えることなく、意味・例文・発音をその場で確認できます。</p>
+      <p>Netflix・Disney+・Prime Video・YouTubeに対応。</p>
+    </div>
+  </section>
+
+  <!-- ===================== FEATURE 2: 読む (heading + 2-col gallery) ===================== -->
+  <section class="reading-section">
+    <div class="lead">
+      <h2 class="reveal">読む流れを、止めない。</h2>
+      <p class="reveal">Webページを離れることなく、気になった単語や熟語をその場で検索。読んでいた場所を見失いにくく、英文に集中したまま意味・例文・発音を確認できます。</p>
+    </div>
+    <div class="gallery">
+      <div class="item reveal">
+        <div class="cap">選択して検索</div>
+        <div class="media-frame">
+          <video class="auto-video" src="assets/article-scene.mp4" muted loop playsinline preload="metadata"></video>
+        </div>
+      </div>
+      <div class="item reveal">
+        <div class="cap">右クリックから検索</div>
+        <div class="media-frame">
+          <video class="auto-video" src="assets/select-scene.mp4" muted loop playsinline preload="metadata"></video>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== PLATFORM ===================== -->
+  <section class="platform-section">
+    <div class="reveal">
+      <h2>PCで見つけて、iPhoneでも。</h2>
+      <p>Chromeで調べた単語や熟語をSuguに保存。同じアカウントで、iOS版からも確認できます。</p>
+    </div>
+    <div class="qr-card reveal">
+      <div class="qr-label">iOS版 Sugu</div>
+      <div class="qr-box">
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&amp;margin=10&amp;data=https%3A%2F%2Fapps.apple.com%2Fapp%2Fid6767128244" alt="iOS版SuguのApp Store詳細ページを開くQRコード">
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== CLOSING CTA ===================== -->
+  <section class="closing">
+    <h2 class="reveal">英語に集中したまま、調べよう。</h2>
+    <a class="btn reveal" href="https://chromewebstore.google.com/detail/Sugu/jamcdndanlnpjokhkdmgfhjcgcicglcg" target="_blank" rel="noopener noreferrer">Chromeに追加</a>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="footer-top">
+      <div>
+        <div class="footer-logo">Sugu</div>
+        <div class="footer-tagline">Chrome拡張機能 / iOSアプリ</div>
+      </div>
+      <div class="footer-cols">
+        <div>
+          <div class="footer-col-title">Company</div>
+          <div class="footer-links">
+            <a href="https://www.notion.so/3559a7163b3880239ec3ed3cfed7bbff?source=copy_link" target="_blank" rel="noopener noreferrer">利用規約</a>
+            <a href="https://www.notion.so/3559a7163b3880e4a470c45ee1e4e9cd?source=copy_link" target="_blank" rel="noopener noreferrer">プライバシーポリシー</a>
+            <a href="https://www.notion.so/Sugu-3599a7163b388045939ef45464732cff?source=copy_link" target="_blank" rel="noopener noreferrer">お問い合わせ</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="fine">© 2026 Sugu</div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  const header = document.getElementById('siteHeader');
+  window.addEventListener('scroll', () => {
+    header.classList.toggle('scrolled', window.scrollY > 8);
+  });
+
+  const revealEls = document.querySelectorAll('.reveal');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('in');
+        io.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.15 });
+  revealEls.forEach(el => io.observe(el));
+
+  const videos = document.querySelectorAll('.auto-video');
+  const vio = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      const v = e.target;
+      if (e.isIntersecting) {
+        v.play().catch(()=>{});
+      } else {
+        v.pause();
+      }
+    });
+  }, { threshold: 0.3 });
+  videos.forEach(v => vio.observe(v));
+</script>
+
+</body>
+</html>
