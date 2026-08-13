@@ -8,9 +8,16 @@ import { ScreenLayout } from "../layout/ScreenLayout";
 import { WORD_DISPLAY_FONT_FAMILY } from "../styles/fonts";
 import { WordItem } from "../types";
 
+export type NoticeItem = {
+    id: string;
+    title: string;
+    url: string;
+};
+
 type VocabularyListPageProps = {
     words: WordItem[];
     errorMessage: string | null;
+    notices: NoticeItem[];
     onPressWord: (wordId: number) => void;
     onDeleteWord: (wordId: number) => void;
     onAddWordToWidget: (word: WordItem) => void;
@@ -24,6 +31,7 @@ type VocabularyListPageProps = {
     menuOpen: boolean;
     onToggleMenu: () => void;
     onLogout: () => void;
+    onOpenNotice: (notice: NoticeItem) => void;
     chromeExtensionNoticeVisible: boolean;
     onCloseChromeExtensionNotice: () => void;
     onDismissChromeExtensionNoticePermanently: () => void;
@@ -32,6 +40,7 @@ type VocabularyListPageProps = {
 export const VocabularyListPage = ({
     words,
     errorMessage,
+    notices,
     onPressWord,
     onDeleteWord,
     onAddWordToWidget,
@@ -45,12 +54,14 @@ export const VocabularyListPage = ({
     menuOpen,
     onToggleMenu,
     onLogout,
+    onOpenNotice,
     chromeExtensionNoticeVisible,
     onCloseChromeExtensionNotice,
     onDismissChromeExtensionNoticePermanently,
 }: VocabularyListPageProps) => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [actionWord, setActionWord] = useState<WordItem | null>(null);
+    const [noticeMenuOpen, setNoticeMenuOpen] = useState(false);
     const [listSearchText, setListSearchText] = useState("");
 
     const normalizedSearchText = listSearchText.trim().toLowerCase();
@@ -97,6 +108,14 @@ export const VocabularyListPage = ({
         [],
     );
 
+    const handleToggleMenu = () => {
+        if (menuOpen) {
+            setNoticeMenuOpen(false);
+        }
+
+        onToggleMenu();
+    };
+
     return (
         <ScreenLayout
             contentFillsViewport
@@ -108,7 +127,7 @@ export const VocabularyListPage = ({
                     {isPro ? <ProBadgeText>PRO</ProBadgeText> : null}
                     <MenuButton
                         activeOpacity={0.8}
-                        onPress={onToggleMenu}
+                        onPress={handleToggleMenu}
                     >
                         {menuOpen ? (
                             <MenuIcon>×</MenuIcon>
@@ -126,66 +145,125 @@ export const VocabularyListPage = ({
                 menuOpen ? (
                     <MenuOverlay>
                         <MenuPanel>
-                            <ProMenuButton
-                                activeOpacity={0.8}
-                                onPress={onOpenPro}
-                            >
-                                <ProMenuLabel>
-                                    Sugu Proへアップグレード
-                                </ProMenuLabel>
-                                <Feather
-                                    name="chevron-right"
-                                    size={20}
-                                    color="#ffffff"
-                                />
-                            </ProMenuButton>
+                            {noticeMenuOpen ? (
+                                <>
+                                    <NoticeMenuHeader>
+                                        <NoticeBackButton
+                                            activeOpacity={0.82}
+                                            onPress={() =>
+                                                setNoticeMenuOpen(false)
+                                            }
+                                        >
+                                            <Feather
+                                                name="chevron-left"
+                                                size={20}
+                                                color="#111111"
+                                            />
+                                        </NoticeBackButton>
+                                        <NoticeMenuTitle>
+                                            お知らせ
+                                        </NoticeMenuTitle>
+                                    </NoticeMenuHeader>
+                                    <NoticeList>
+                                        {notices.map((notice) => (
+                                            <NoticeButton
+                                                key={notice.id}
+                                                activeOpacity={0.82}
+                                                onPress={() => {
+                                                    setNoticeMenuOpen(false);
+                                                    onOpenNotice(notice);
+                                                }}
+                                            >
+                                                <NoticeTitle>
+                                                    {notice.title}
+                                                </NoticeTitle>
+                                                <Feather
+                                                    name="external-link"
+                                                    size={18}
+                                                    color="#777777"
+                                                />
+                                            </NoticeButton>
+                                        ))}
+                                    </NoticeList>
+                                </>
+                            ) : (
+                                <>
+                                    <ProMenuButton
+                                        activeOpacity={0.8}
+                                        onPress={onOpenPro}
+                                    >
+                                        <ProMenuLabel>
+                                            Sugu Proへアップグレード
+                                        </ProMenuLabel>
+                                        <Feather
+                                            name="chevron-right"
+                                            size={20}
+                                            color="#ffffff"
+                                        />
+                                    </ProMenuButton>
 
-                            <PrimaryMenuGroup>
-                                <PrimaryMenuButton
-                                    activeOpacity={0.8}
-                                    onPress={onLogout}
-                                >
-                                    <PrimaryMenuLabel>
-                                        ログアウト
-                                    </PrimaryMenuLabel>
-                                </PrimaryMenuButton>
-                                <PrimaryMenuButton
-                                    activeOpacity={0.8}
-                                    onPress={onOpenSupport}
-                                >
-                                    <PrimaryMenuLabel>
-                                        お問い合わせ
-                                    </PrimaryMenuLabel>
-                                </PrimaryMenuButton>
-                            </PrimaryMenuGroup>
+                                    <PrimaryMenuGroup>
+                                        <PrimaryMenuButton
+                                            activeOpacity={0.8}
+                                            onPress={() =>
+                                                setNoticeMenuOpen(true)
+                                            }
+                                        >
+                                            <PrimaryMenuLabel>
+                                                お知らせ
+                                            </PrimaryMenuLabel>
+                                        </PrimaryMenuButton>
+                                        <PrimaryMenuButton
+                                            activeOpacity={0.8}
+                                            onPress={onOpenSupport}
+                                        >
+                                            <PrimaryMenuLabel>
+                                                お問い合わせ
+                                            </PrimaryMenuLabel>
+                                        </PrimaryMenuButton>
+                                        <PrimaryMenuButton
+                                            activeOpacity={0.8}
+                                            onPress={onLogout}
+                                        >
+                                            <PrimaryMenuLabel>
+                                                ログアウト
+                                            </PrimaryMenuLabel>
+                                        </PrimaryMenuButton>
+                                    </PrimaryMenuGroup>
 
-                            <ReferenceMenuGroup>
-                                <ReferenceMenuButton
-                                    activeOpacity={0.8}
-                                    onPress={onOpenPrivacyPolicy}
-                                >
-                                    <ReferenceMenuLabel>
-                                        プライバシーポリシー
-                                    </ReferenceMenuLabel>
-                                </ReferenceMenuButton>
-                                <ReferenceMenuButton
-                                    activeOpacity={0.8}
-                                    onPress={onOpenTerms}
-                                >
-                                    <ReferenceMenuLabel>
-                                        利用規約
-                                    </ReferenceMenuLabel>
-                                </ReferenceMenuButton>
-                            </ReferenceMenuGroup>
+                                    <ReferenceMenuGroup>
+                                        <ReferenceMenuButton
+                                            activeOpacity={0.8}
+                                            onPress={onOpenPrivacyPolicy}
+                                        >
+                                            <ReferenceMenuLabel>
+                                                プライバシーポリシー
+                                            </ReferenceMenuLabel>
+                                        </ReferenceMenuButton>
+                                        <ReferenceMenuButton
+                                            activeOpacity={0.8}
+                                            onPress={onOpenTerms}
+                                        >
+                                            <ReferenceMenuLabel>
+                                                利用規約
+                                            </ReferenceMenuLabel>
+                                        </ReferenceMenuButton>
+                                    </ReferenceMenuGroup>
 
-                            <DangerMenuButton
-                                activeOpacity={0.8}
-                                onPress={() => setShowDeleteConfirm(true)}
-                            >
-                                <DangerMenuLabel>
-                                    アカウント削除
-                                </DangerMenuLabel>
-                            </DangerMenuButton>
+                                    <AccountMenuGroup>
+                                        <DangerMenuButton
+                                            activeOpacity={0.8}
+                                            onPress={() =>
+                                                setShowDeleteConfirm(true)
+                                            }
+                                        >
+                                            <DangerMenuLabel>
+                                                アカウント削除
+                                            </DangerMenuLabel>
+                                        </DangerMenuButton>
+                                    </AccountMenuGroup>
+                                </>
+                            )}
                         </MenuPanel>
                         {showDeleteConfirm ? (
                             <ConfirmOverlay>
@@ -426,7 +504,7 @@ const ProMenuLabel = styled.Text`
 `;
 
 const PrimaryMenuGroup = styled.View`
-    margin-bottom: 20px;
+    margin-bottom: 12px;
 `;
 
 const PrimaryMenuButton = styled.TouchableOpacity`
@@ -443,13 +521,59 @@ const PrimaryMenuLabel = styled.Text`
     font-weight: 700;
 `;
 
+const NoticeMenuHeader = styled.View`
+    min-height: 44px;
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 28px;
+`;
+
+const NoticeBackButton = styled.TouchableOpacity`
+    width: 38px;
+    height: 38px;
+    align-items: flex-start;
+    justify-content: center;
+    margin-right: 4px;
+`;
+
+const NoticeMenuTitle = styled.Text`
+    color: #111111;
+    font-size: 22px;
+    line-height: 28px;
+    font-weight: 800;
+`;
+
+const NoticeList = styled.View`
+    border-top-width: 0.5px;
+    border-top-color: #e5e5e5;
+`;
+
+const NoticeButton = styled.TouchableOpacity`
+    min-height: 62px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom-width: 0.5px;
+    border-bottom-color: #e5e5e5;
+    padding: 14px 0;
+`;
+
+const NoticeTitle = styled.Text`
+    flex: 1;
+    color: #111111;
+    font-size: 15px;
+    line-height: 22px;
+    font-weight: 700;
+    margin-right: 14px;
+`;
+
 const ReferenceMenuGroup = styled.View`
-    margin-bottom: 40px;
+    margin-bottom: 12px;
 `;
 
 const ReferenceMenuButton = styled.TouchableOpacity`
-    padding-top: 11px;
-    padding-bottom: 11px;
+    padding-top: 6px;
+    padding-bottom: 6px;
 `;
 
 const ReferenceMenuLabel = styled.Text`
@@ -459,14 +583,20 @@ const ReferenceMenuLabel = styled.Text`
     font-weight: 400;
 `;
 
+const AccountMenuGroup = styled.View`
+    border-top-width: 0.5px;
+    border-top-color: #e5e5e5;
+    padding-top: 14px;
+`;
+
 const DangerMenuButton = styled.TouchableOpacity`
     padding-top: 0px;
 `;
 
 const DangerMenuLabel = styled.Text`
-    color: #555555;
-    font-size: 18px;
-    line-height: 24px;
+    color: #8a8a8e;
+    font-size: 14px;
+    line-height: 20px;
     font-weight: 500;
 `;
 
