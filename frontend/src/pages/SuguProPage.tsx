@@ -273,7 +273,8 @@ const StatusText = styled.Text`
 const PrimaryButton = styled.TouchableOpacity<{ $disabled?: boolean }>`
     height: 54px;
     border-radius: 27px;
-    background-color: ${({ $disabled }) => ($disabled ? "#8d8d8d" : "#1f1f1f")};
+    background-color: ${(props: { $disabled?: boolean }) =>
+        props.$disabled ? "#8d8d8d" : "#1f1f1f"};
     align-items: center;
     justify-content: center;
     margin-bottom: 12px;
@@ -291,7 +292,8 @@ const SecondaryButton = styled.TouchableOpacity<{ $disabled?: boolean }>`
     border-radius: 27px;
     border-width: 1px;
     border-color: #cfcfcf;
-    background-color: ${({ $disabled }) => ($disabled ? "#f2f2f2" : "#ffffff")};
+    background-color: ${(props: { $disabled?: boolean }) =>
+        props.$disabled ? "#f2f2f2" : "#ffffff"};
     align-items: center;
     justify-content: center;
 `;

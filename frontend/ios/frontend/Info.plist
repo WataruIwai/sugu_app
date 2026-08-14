@@ -62,13 +62,6 @@
 	</dict>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Allow $(PRODUCT_NAME) to access your Face ID biometric data.</string>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>開発中にMac上の開発サーバーへ接続するため、ローカルネットワークを使用します。</string>
-	<key>NSBonjourServices</key>
-	<array>
-		<string>_expo._tcp</string>
-		<string>_react-native-metro._tcp</string>
-	</array>
 	<key>NSUserTrackingUsageDescription</key>
 	<string>許可することで、より関連性の高い広告を表示できるようになります。</string>
 	<key>RCTNewArchEnabled</key>
