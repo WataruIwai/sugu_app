@@ -4,6 +4,7 @@ import * as Speech from "expo-speech";
 import { Animated, Easing } from "react-native";
 import styled from "styled-components/native";
 
+import { ChromeExtensionNoticeCard } from "../components/ChromeExtensionNoticeCard";
 import { ScreenLayout } from "../layout/ScreenLayout";
 import { WORD_DISPLAY_FONT_FAMILY } from "../styles/fonts";
 import { SearchResult } from "../types";
@@ -32,6 +33,9 @@ type SearchPageProps = {
     onNavigateSignUpFromGuestPrompt: () => void;
     onWatchSearchBonusAd: () => void;
     onOpenPro: () => void;
+    chromeExtensionNoticeVisible: boolean;
+    onCloseChromeExtensionNotice: () => void;
+    onDismissChromeExtensionNoticePermanently: () => void;
 };
 
 export const SearchPage = ({
@@ -58,6 +62,9 @@ export const SearchPage = ({
     onNavigateSignUpFromGuestPrompt,
     onWatchSearchBonusAd,
     onOpenPro,
+    chromeExtensionNoticeVisible,
+    onCloseChromeExtensionNotice,
+    onDismissChromeExtensionNoticePermanently,
 }: SearchPageProps) => {
     const loadingProgress = useRef(new Animated.Value(0)).current;
     const [addedToMyList, setAddedToMyList] = useState(false);
@@ -238,6 +245,14 @@ export const SearchPage = ({
                 <HeaderBackButton onPress={onBack}>
                     <BackIcon>←</BackIcon>
                 </HeaderBackButton>
+                {chromeExtensionNoticeVisible ? (
+                    <ChromeExtensionNoticeCard
+                        onClose={onCloseChromeExtensionNotice}
+                        onDismissPermanently={
+                            onDismissChromeExtensionNoticePermanently
+                        }
+                    />
+                ) : null}
                 <SearchTrack>
                     <SearchInput
                         autoFocus

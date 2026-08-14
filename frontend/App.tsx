@@ -8,11 +8,13 @@ import {
 } from "expo-tracking-transparency";
 
 import {
+    getChromeExtensionNoticeDismissed,
     getAttPermissionRequested,
     deleteAuthToken,
     getGuestId,
     getAuthToken,
     getOnboardingCompleted,
+    saveChromeExtensionNoticeDismissed,
     saveAttPermissionRequested,
     saveGuestId,
     saveAuthToken,
@@ -24,6 +26,7 @@ import {
 } from "./src/ads/rewardedSearchBonus";
 import { SignInPage } from "./src/pages/SignInPage";
 import { VocabularyListPage } from "./src/pages/VocabularyListPage";
+import type { NoticeItem } from "./src/pages/VocabularyListPage";
 import { WordDetailPage } from "./src/pages/WordDetailPage";
 import { SearchPage } from "./src/pages/SearchPage";
 import { SuguProPage } from "./src/pages/SuguProPage";
@@ -43,6 +46,14 @@ const PRIVACY_POLICY_URL =
     "https://www.notion.so/3559a7163b3880e4a470c45ee1e4e9cd?source=copy_link";
 const SUPPORT_URL =
     "https://www.notion.so/Sugu-3599a7163b388045939ef45464732cff?source=copy_link";
+const CHROME_EXTENSION_LP_URL = "https://sugu-app-lp.vercel.app/";
+const APP_NOTICES: NoticeItem[] = [
+    {
+        id: "chrome-extension-release",
+        title: "Chrome拡張をリリースしました。",
+        url: CHROME_EXTENSION_LP_URL,
+    },
+];
 
 type Screen =
     | "onboarding"
@@ -184,6 +195,8 @@ export default function App() {
     const [searchBonusPromptErrorMessage, setSearchBonusPromptErrorMessage] =
         useState<string | null>(null);
     const [attCheckCompleted, setAttCheckCompleted] = useState(false);
+    const [chromeExtensionNoticeVisible, setChromeExtensionNoticeVisible] =
+        useState(false);
 
     const authenticated = useMemo(() => Boolean(token), [token]);
     const guestMode = useMemo(
@@ -193,6 +206,15 @@ export default function App() {
 
     const buildGuestId = () =>
         `guest_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
+
+    const handleCloseChromeExtensionNotice = () => {
+        setChromeExtensionNoticeVisible(false);
+    };
+
+    const handleDismissChromeExtensionNoticePermanently = async () => {
+        setChromeExtensionNoticeVisible(false);
+        await saveChromeExtensionNoticeDismissed();
+    };
 
     const buildSuguWidgetWord = async (
         word: WordItem,
@@ -876,6 +898,15 @@ export default function App() {
         }
     };
 
+    const handleOpenNotice = async (notice: NoticeItem) => {
+        try {
+            setListMenuOpen(false);
+            await Linking.openURL(notice.url);
+        } catch {
+            setErrorMessage("お知らせページを開けませんでした。");
+        }
+    };
+
     const handleDeleteAccount = async () => {
         if (!token) {
             setErrorMessage("ログインが必要です。");
@@ -931,6 +962,12 @@ export default function App() {
                 const storedToken = await getAuthToken();
                 const storedGuestId = await getGuestId();
                 const onboardingCompleted = await getOnboardingCompleted();
+                const chromeExtensionNoticeDismissed =
+                    await getChromeExtensionNoticeDismissed();
+
+                setChromeExtensionNoticeVisible(
+                    chromeExtensionNoticeDismissed !== "true",
+                );
 
                 if (storedGuestId) {
                     setGuestId(storedGuestId);
@@ -1094,6 +1131,7 @@ export default function App() {
             <VocabularyListPage
                 words={words}
                 errorMessage={errorMessage}
+                notices={APP_NOTICES}
                 onPressWord={handleSelectWord}
                 onDeleteWord={handleDeleteWord}
                 onAddWordToWidget={handleAddWordToWidget}
@@ -1107,6 +1145,16 @@ export default function App() {
                 menuOpen={listMenuOpen}
                 onToggleMenu={() => setListMenuOpen((current) => !current)}
                 onLogout={handleLogout}
+                onOpenNotice={handleOpenNotice}
+                chromeExtensionNoticeVisible={
+                    Boolean(token) && chromeExtensionNoticeVisible
+                }
+                onCloseChromeExtensionNotice={
+                    handleCloseChromeExtensionNotice
+                }
+                onDismissChromeExtensionNoticePermanently={
+                    handleDismissChromeExtensionNoticePermanently
+                }
             />
         );
     }
@@ -1149,6 +1197,15 @@ export default function App() {
                 }
                 onWatchSearchBonusAd={handleWatchSearchBonusAd}
                 onOpenPro={() => handleOpenPro("search")}
+                chromeExtensionNoticeVisible={
+                    guestMode && chromeExtensionNoticeVisible
+                }
+                onCloseChromeExtensionNotice={
+                    handleCloseChromeExtensionNotice
+                }
+                onDismissChromeExtensionNoticePermanently={
+                    handleDismissChromeExtensionNoticePermanently
+                }
             />
         );
     }
