@@ -46,7 +46,7 @@ const PRIVACY_POLICY_URL =
     "https://www.notion.so/3559a7163b3880e4a470c45ee1e4e9cd?source=copy_link";
 const SUPPORT_URL =
     "https://www.notion.so/Sugu-3599a7163b388045939ef45464732cff?source=copy_link";
-const CHROME_EXTENSION_LP_URL = "https://example.com/sugu-chrome-extension";
+const CHROME_EXTENSION_LP_URL = "https://sugu-app-lp.vercel.app/";
 const APP_NOTICES: NoticeItem[] = [
     {
         id: "chrome-extension-release",
