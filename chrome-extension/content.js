@@ -23,6 +23,7 @@ const AUTH_CALLBACK_PATHS = [
   "/api/v1/auth/apple/web/callback",
   "/auth/apple/web/callback"
 ];
+const GOOGLE_LOGO_URL = chrome.runtime.getURL("assets/google-g-logo.png");
 
 let originalBodyStyles = null;
 let currentFullscreenHost = null;
@@ -401,9 +402,11 @@ function render() {
   if (state.appView === VIEW_LOGIN) {
     body.append(renderAuthInfoView({
       title: "ログイン",
-      description: "Sign in with AppleでSuguアカウントにログインします。",
+      description: "Suguアカウントにログインします。",
       primaryText: "Sign in with Apple",
-      primaryAction: () => void startAppleAuth()
+      primaryAction: () => void startAppleAuth(),
+      googleText: "Sign in with Google",
+      googleAction: () => void startGoogleAuth()
     }));
     panel.append(header, body);
     root.append(panel);
@@ -415,7 +418,9 @@ function render() {
       title: "アカウント作成",
       description: "無料アカウントを作成すると、登録ユーザー向けの検索回数を利用でき、単語を保存できます。",
       primaryText: "Sign in with Apple",
-      primaryAction: () => void startAppleAuth()
+      primaryAction: () => void startAppleAuth(),
+      googleText: "Sign in with Google",
+      googleAction: () => void startGoogleAuth()
     }));
     panel.append(header, body);
     root.append(panel);
@@ -612,7 +617,27 @@ function createAuthChoice(label, buttonText, onClick) {
   });
 }
 
-function renderAuthInfoView({ title, description, primaryText, primaryAction, footnote }) {
+function createGoogleAuthButton(text) {
+  const button = createElement("button", {
+    className: "sugu-button sugu-outline-wide-button sugu-google-auth-button"
+  });
+  button.append(
+    createElement("img", {
+      className: "sugu-google-auth-logo",
+      attributes: {
+        src: GOOGLE_LOGO_URL,
+        alt: "",
+        width: "20",
+        height: "20",
+        loading: "eager"
+      }
+    }),
+    createElement("span", { text })
+  );
+  return button;
+}
+
+function renderAuthInfoView({ title, description, primaryText, primaryAction, googleText, googleAction, footnote }) {
   const primaryButton = createElement("button", {
     className: "sugu-button sugu-primary-wide-button sugu-apple-auth-button"
   });
@@ -621,6 +646,9 @@ function renderAuthInfoView({ title, description, primaryText, primaryAction, fo
     createExternalTabIcon()
   );
   primaryButton.addEventListener("click", primaryAction);
+
+  const googleButton = createGoogleAuthButton(googleText ?? "Sign in with Google");
+  googleButton.addEventListener("click", googleAction ?? (() => void startGoogleAuth()));
 
   const guestButton = createElement("button", {
     className: "sugu-button sugu-outline-wide-button",
@@ -632,6 +660,7 @@ function renderAuthInfoView({ title, description, primaryText, primaryAction, fo
     createElement("div", { className: "sugu-simple-title", text: title }),
     createElement("div", { className: "sugu-simple-description", text: description }),
     primaryButton,
+    googleButton,
     guestButton
   ];
 
@@ -652,9 +681,13 @@ function renderInlineLoginAction() {
   });
   loginButton.addEventListener("click", () => void startAppleAuth());
 
+  const googleButton = createGoogleAuthButton("Sign in with Google");
+  googleButton.classList.add("sugu-inline-google-login-button");
+  googleButton.addEventListener("click", () => void startGoogleAuth());
+
   return createElement("div", {
     className: "sugu-inline-login",
-    children: [loginButton]
+    children: [loginButton, googleButton]
   });
 }
 
@@ -997,6 +1030,16 @@ async function startAppleAuth() {
   if (!response.ok) {
     setStatus(response.error, "error");
   }
+}
+
+async function startGoogleAuth() {
+  const response = await sendMessage({ type: "SUGU_START_GOOGLE_AUTH" });
+  if (!response.ok) {
+    setStatus(response.error, "error");
+    return;
+  }
+
+  handleAuthCompleted();
 }
 
 function handleAuthCompleted() {

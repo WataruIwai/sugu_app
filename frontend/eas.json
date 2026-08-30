@@ -14,7 +14,7 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://vocab-app-7lb5.onrender.com"
+        "EXPO_PUBLIC_API_BASE_URL": "https://sugu-app-dev.onrender.com"
       }
     }
   },

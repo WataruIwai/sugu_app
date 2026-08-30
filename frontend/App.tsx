@@ -2,10 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, Linking, Platform } from "react-native";
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as Crypto from "expo-crypto";
+import * as SplashScreen from "expo-splash-screen";
 import {
     getTrackingPermissionsAsync,
     requestTrackingPermissionsAsync,
 } from "expo-tracking-transparency";
+import {
+    GoogleSignin,
+    statusCodes,
+} from "@react-native-google-signin/google-signin";
 
 import {
     getChromeExtensionNoticeDismissed,
@@ -48,6 +53,11 @@ const PRIVACY_POLICY_URL =
 const SUPPORT_URL =
     "https://www.notion.so/Sugu-3599a7163b388045939ef45464732cff?source=copy_link";
 const CHROME_EXTENSION_LP_URL = "https://sugu-app-lp.vercel.app/";
+const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? "";
+const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? "";
+void SplashScreen.preventAutoHideAsync().catch(() => {
+    // The splash screen can already be hidden during fast refresh.
+});
 const APP_NOTICES: NoticeItem[] = [
     {
         id: "chrome-extension-release",
@@ -150,14 +160,61 @@ const generateNonce = (byteLength = 32) =>
         .map((byte) => byte.toString(16).padStart(2, "0"))
         .join("");
 
+const configureGoogleSignIn = () => {
+    if (!GOOGLE_WEB_CLIENT_ID) {
+        return false;
+    }
+
+    if (Platform.OS === "ios" && !GOOGLE_IOS_CLIENT_ID) {
+        return false;
+    }
+
+    GoogleSignin.configure({
+        webClientId: GOOGLE_WEB_CLIENT_ID,
+        iosClientId: GOOGLE_IOS_CLIENT_ID || undefined,
+        offlineAccess: false,
+    });
+
+    return true;
+};
+
+const getGoogleIdToken = (response: unknown) => {
+    if (typeof response !== "object" || response === null) {
+        return null;
+    }
+
+    const record = response as {
+        type?: string;
+        data?: { idToken?: string | null };
+        idToken?: string | null;
+    };
+
+    return record.data?.idToken ?? record.idToken ?? null;
+};
+
+const isGoogleSignInCancelled = (value: unknown) => {
+    if (typeof value !== "object" || value === null) {
+        return false;
+    }
+
+    const record = value as { type?: string; code?: string };
+    return (
+        record.type === "cancelled" ||
+        record.code === statusCodes.SIGN_IN_CANCELLED
+    );
+};
+
 export default function App() {
     const subscription = useSubscription();
     const bootStartedAtRef = useRef(Date.now());
     const handledInitialUrlRef = useRef<string | null>(null);
+    const nativeSplashHiddenRef = useRef(false);
     const [screen, setScreen] = useState<Screen>("signin");
     const [token, setToken] = useState<string | null>(null);
     const [guestId, setGuestId] = useState<string | null>(null);
     const [bootstrapping, setBootstrapping] = useState(true);
+    const [googleSignInConfigured, setGoogleSignInConfigured] =
+        useState(false);
 
     const [signInAgreedToTerms, setSignInAgreedToTerms] = useState(false);
 
@@ -208,6 +265,19 @@ export default function App() {
 
     const buildGuestId = () =>
         `guest_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
+
+    const hideNativeSplashScreen = useCallback(async () => {
+        if (nativeSplashHiddenRef.current) {
+            return;
+        }
+
+        nativeSplashHiddenRef.current = true;
+        await SplashScreen.hideAsync().catch(() => undefined);
+    }, []);
+
+    useEffect(() => {
+        setGoogleSignInConfigured(configureGoogleSignIn());
+    }, []);
 
     const handleCloseChromeExtensionNotice = () => {
         setChromeExtensionNoticeVisible(false);
@@ -433,6 +503,90 @@ export default function App() {
                 error instanceof Error
                     ? error.message
                     : "Apple ログインに失敗しました。",
+            );
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleContinueWithGoogle = async (agreedToTerms: boolean) => {
+        setLoading(true);
+        setErrorMessage(null);
+
+        try {
+            if (!agreedToTerms) {
+                throw new Error("利用規約への同意が必要です。");
+            }
+
+            if (!googleSignInConfigured) {
+                const configured = configureGoogleSignIn();
+
+                if (!configured) {
+                    throw new Error(
+                        "Google ログイン設定が不足しています。Web Client IDとiOS Client IDを確認してください。",
+                    );
+                }
+
+                setGoogleSignInConfigured(true);
+            }
+
+            if (Platform.OS === "android") {
+                await GoogleSignin.hasPlayServices({
+                    showPlayServicesUpdateDialog: true,
+                });
+            }
+
+            const googleSignInResponse = await GoogleSignin.signIn();
+
+            if (isGoogleSignInCancelled(googleSignInResponse)) {
+                setErrorMessage(null);
+                return;
+            }
+
+            const identityToken = getGoogleIdToken(googleSignInResponse);
+
+            if (!identityToken) {
+                throw new Error("Google 認証トークンを取得できませんでした。");
+            }
+
+            const response = await fetch(`${API_BASE_URL}/api/v1/auth/google`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    identityToken,
+                    agreedToTerms,
+                }),
+            });
+
+            if (!response.ok) {
+                const rawResponseText = await response.text();
+                throw new Error(
+                    parseServerErrorMessage(
+                        rawResponseText,
+                        "Google ログインに失敗しました。",
+                    ),
+                );
+            }
+
+            const currentToken = normalizeToken(await response.text());
+            await saveAuthToken(currentToken);
+            setToken(currentToken);
+            setScreen("list");
+            await fetchWords(currentToken);
+        } catch (error) {
+            console.log("Google sign in error:", error);
+
+            if (isGoogleSignInCancelled(error)) {
+                setErrorMessage(null);
+                return;
+            }
+
+            setErrorMessage(
+                error instanceof Error
+                    ? error.message
+                    : "Google ログインに失敗しました。",
             );
         } finally {
             setLoading(false);
@@ -1143,7 +1297,7 @@ export default function App() {
     }, [attCheckCompleted, bootstrapping]);
 
     if (bootstrapping) {
-        return <BootSplashPage />;
+        return <BootSplashPage onLayout={hideNativeSplashScreen} />;
     }
 
     if (screen === "list") {
@@ -1273,6 +1427,9 @@ export default function App() {
             }
             onSubmitApple={() =>
                 void handleContinueWithApple(signInAgreedToTerms)
+            }
+            onSubmitGoogle={() =>
+                void handleContinueWithGoogle(signInAgreedToTerms)
             }
             onOpenTerms={handleOpenTerms}
             onOpenPrivacyPolicy={handleOpenPrivacyPolicy}

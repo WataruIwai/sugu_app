@@ -5,6 +5,7 @@ import WidgetKit
 final class SuguWidgetBridge: NSObject {
     private let appGroupId = "group.com.sugu.ios"
     private let widgetDefaultsKey = "widgetFeaturedWord"
+    private let lockScreenWidgetDefaultsKey = "lockScreenWidgetFeaturedWord"
 
     @objc
     static func requiresMainQueueSetup() -> Bool {
@@ -19,6 +20,7 @@ final class SuguWidgetBridge: NSObject {
         }
 
         defaults.set(snapshot, forKey: widgetDefaultsKey)
+        defaults.set(snapshot, forKey: lockScreenWidgetDefaultsKey)
         defaults.synchronize()
         WidgetCenter.shared.reloadTimelines(ofKind: "SuguWidget")
         WidgetCenter.shared.reloadAllTimelines()
@@ -43,7 +45,9 @@ final class SuguWidgetBridge: NSObject {
         }
 
         defaults.removeObject(forKey: widgetDefaultsKey)
+        defaults.removeObject(forKey: lockScreenWidgetDefaultsKey)
         defaults.removeObject(forKey: "widgetLastShownWordId")
+        defaults.removeObject(forKey: "lockScreenWidgetLastShownWordId")
         defaults.synchronize()
         WidgetCenter.shared.reloadTimelines(ofKind: "SuguWidget")
         WidgetCenter.shared.reloadAllTimelines()

@@ -1,8 +1,11 @@
 import React from "react";
+import { ImageSourcePropType } from "react-native";
 import * as AppleAuthentication from "expo-apple-authentication";
 import styled from "styled-components/native";
 
 import { FormLayout } from "../layout/FormLayout";
+
+const googleLogo = require("../../assets/google-g-logo.png") as ImageSourcePropType;
 
 type SignUpPageProps = {
     agreedToTerms: boolean;
@@ -10,6 +13,7 @@ type SignUpPageProps = {
     errorMessage: string | null;
     onToggleTerms: () => void;
     onSubmitApple: () => void;
+    onSubmitGoogle: () => void;
     onNavigateSignIn: () => void;
     onOpenTerms: () => void;
     onOpenPrivacyPolicy: () => void;
@@ -21,6 +25,7 @@ export const SignUpPage = ({
     errorMessage,
     onToggleTerms,
     onSubmitApple,
+    onSubmitGoogle,
     onNavigateSignIn,
     onOpenTerms,
     onOpenPrivacyPolicy,
@@ -54,6 +59,16 @@ export const SignUpPage = ({
                 />
             </AppleButtonWrap>
 
+            <GoogleButton
+                activeOpacity={0.84}
+                disabled={loading}
+                $disabled={loading}
+                onPress={onSubmitGoogle}
+            >
+                <GoogleLogo source={googleLogo} resizeMode="contain" />
+                <GoogleButtonText>Sign up with Google</GoogleButtonText>
+            </GoogleButton>
+
             <TermsArea>
                 <PolicyLinksRow>
                     <PolicyLink activeOpacity={0.8} onPress={onOpenPrivacyPolicy}>
@@ -70,7 +85,11 @@ export const SignUpPage = ({
                 </AgreementRow>
             </TermsArea>
 
-            {errorMessage ? <ErrorText>{errorMessage}</ErrorText> : null}
+            <ErrorSlot>
+                <ErrorText $visible={Boolean(errorMessage)} numberOfLines={2}>
+                    {errorMessage ?? " "}
+                </ErrorText>
+            </ErrorSlot>
 
             <FooterLink disabled={loading} onPress={onNavigateSignIn}>
                 <FooterLinkText>ログインへ戻る</FooterLinkText>
@@ -85,6 +104,33 @@ const TopSpacer = styled.View`
 
 const AppleButtonWrap = styled.View`
     width: 100%;
+`;
+
+const GoogleButton = styled.TouchableOpacity<{ $disabled: boolean }>`
+    width: 100%;
+    height: 54px;
+    margin-top: 10px;
+    border-radius: 16px;
+    border-width: 1px;
+    border-color: #dadce0;
+    background-color: #ffffff;
+    opacity: ${(props: { $disabled: boolean }) =>
+        props.$disabled ? 0.72 : 1};
+    align-items: center;
+    justify-content: center;
+    flex-direction: row;
+`;
+
+const GoogleButtonText = styled.Text`
+    color: #202124;
+    font-size: 19px;
+    font-weight: 600;
+    margin-left: 10px;
+`;
+
+const GoogleLogo = styled.Image`
+    width: 22px;
+    height: 22px;
 `;
 
 const TermsArea = styled.View`
@@ -136,11 +182,17 @@ const AgreementIndicator = styled.View<{ $active: boolean }>`
         props.$active ? "#191919" : "#ffffff"};
 `;
 
-const ErrorText = styled.Text`
+const ErrorSlot = styled.View`
+    width: 100%;
+    height: 42px;
+    justify-content: center;
+`;
+
+const ErrorText = styled.Text<{ $visible: boolean }>`
     color: #a93030;
     font-size: 13px;
     line-height: 18px;
-    margin-bottom: 14px;
+    opacity: ${(props: { $visible: boolean }) => (props.$visible ? 1 : 0)};
 `;
 
 const FooterLink = styled.TouchableOpacity`

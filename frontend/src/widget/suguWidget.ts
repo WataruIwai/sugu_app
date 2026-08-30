@@ -34,17 +34,19 @@ const toWidgetWord = (word: WidgetSourceWord) => {
     };
 };
 
+const buildSnapshot = (words: WidgetSourceWord[]) => ({
+    updatedAt: new Date().toISOString(),
+    lastShownWordId: null,
+    words: words.slice(0, MAX_WIDGET_WORDS).map(toWidgetWord),
+});
+
 export const syncSuguWidgetWords = async (words: WidgetSourceWord[]) => {
     if (Platform.OS !== "ios" || !widgetBridge) {
         console.log("Sugu widget sync skipped: native bridge unavailable");
         return;
     }
 
-    const snapshot = {
-        updatedAt: new Date().toISOString(),
-        lastShownWordId: null,
-        words: words.slice(0, MAX_WIDGET_WORDS).map(toWidgetWord),
-    };
+    const snapshot = buildSnapshot(words);
 
     try {
         await widgetBridge.saveSnapshot(JSON.stringify(snapshot));

@@ -1,13 +1,15 @@
 import React from "react";
-import { ImageSourcePropType } from "react-native";
+import { LayoutChangeEvent } from "react-native";
 import styled from "styled-components/native";
 
-const bootWordmark = require("../../assets/boot-wordmark.png") as ImageSourcePropType;
+type BootSplashPageProps = {
+    onLayout?: (event: LayoutChangeEvent) => void;
+};
 
-export const BootSplashPage = () => {
+export const BootSplashPage = ({ onLayout }: BootSplashPageProps) => {
     return (
-        <Container>
-            <Wordmark source={bootWordmark} resizeMode="contain" />
+        <Container onLayout={onLayout}>
+            <Wordmark>Sugu</Wordmark>
         </Container>
     );
 };
@@ -20,7 +22,10 @@ const Container = styled.View`
     padding: 24px;
 `;
 
-const Wordmark = styled.Image`
-    width: 360px;
-    height: 202px;
+const Wordmark = styled.Text`
+    color: #1f1f1f;
+    font-size: 44px;
+    line-height: 56px;
+    font-weight: 700;
+    text-align: center;
 `;

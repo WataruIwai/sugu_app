@@ -1,7 +1,8 @@
-const API_BASE_URL = "https://vocab-app-7lb5.onrender.com";
+const API_BASE_URL = "https://sugu-app-dev.onrender.com";
 const TOKEN_KEY = "suguAuthToken";
 const GUEST_ID_KEY = "suguGuestId";
 const AUTH_ORIGIN_TAB_KEY = "suguAppleAuthOriginTabId";
+const GOOGLE_WEB_CLIENT_ID = "488347090160-7rouuhtkqk384qlj0f8cq4ialnqjh04b.apps.googleusercontent.com";
 const AUTH_CALLBACK_PATHS = [
   "/api/v1/auth/apple/web/callback",
   "/auth/apple/web/callback"
@@ -89,6 +90,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   if (message?.type === "SUGU_START_APPLE_AUTH") {
     startAppleAuth(_sender.tab?.id)
+      .then(() => sendResponse({ ok: true }))
+      .catch((error) => sendResponse(toErrorResponse(error)));
+    return true;
+  }
+
+  if (message?.type === "SUGU_START_GOOGLE_AUTH") {
+    startGoogleAuth(_sender.tab?.id)
       .then(() => sendResponse({ ok: true }))
       .catch((error) => sendResponse(toErrorResponse(error)));
     return true;
@@ -269,6 +277,95 @@ async function startAppleAuth(originTabId) {
   }
 
   await chrome.tabs.create({ url: `${API_BASE_URL}/api/v1/auth/apple/web/start` });
+}
+
+async function startGoogleAuth(_originTabId) {
+  const redirectUri = chrome.identity.getRedirectURL("google");
+  const state = generateRandomString();
+  const nonce = generateRandomString();
+  const authorizationUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+  authorizationUrl.searchParams.set("client_id", GOOGLE_WEB_CLIENT_ID);
+  authorizationUrl.searchParams.set("redirect_uri", redirectUri);
+  authorizationUrl.searchParams.set("response_type", "id_token");
+  authorizationUrl.searchParams.set("scope", "openid email profile");
+  authorizationUrl.searchParams.set("state", state);
+  authorizationUrl.searchParams.set("nonce", nonce);
+  authorizationUrl.searchParams.set("prompt", "select_account");
+
+  const callbackUrl = await launchWebAuthFlow(authorizationUrl.toString());
+  const params = readOAuthCallbackParams(callbackUrl);
+
+  if (params.get("state") !== state) {
+    throw new Error("Googleログインの状態確認に失敗しました。");
+  }
+
+  const identityToken = params.get("id_token");
+
+  if (!identityToken) {
+    throw new Error("Google認証トークンを取得できませんでした。");
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/v1/auth/google`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      identityToken,
+      agreedToTerms: true
+    })
+  });
+
+  const token = await response.text();
+
+  if (!response.ok) {
+    const error = new Error(resolveServerErrorMessage(token, "Googleログインに失敗しました。").message);
+    error.status = response.status;
+    throw error;
+  }
+
+  if (!isJwtLikeToken(token)) {
+    throw new Error("Googleログインの認証情報を取得できませんでした。");
+  }
+
+  await setToken(token);
+}
+
+function launchWebAuthFlow(url) {
+  return new Promise((resolve, reject) => {
+    chrome.identity.launchWebAuthFlow(
+      {
+        url,
+        interactive: true
+      },
+      (callbackUrl) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+
+        if (!callbackUrl) {
+          reject(new Error("Googleログインがキャンセルされました。"));
+          return;
+        }
+
+        resolve(callbackUrl);
+      }
+    );
+  });
+}
+
+function readOAuthCallbackParams(callbackUrl) {
+  const url = new URL(callbackUrl);
+  return new URLSearchParams(url.hash.startsWith("#") ? url.hash.slice(1) : url.search.slice(1));
+}
+
+function generateRandomString() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes)
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 async function completeAppleAuth(token, authTabId) {

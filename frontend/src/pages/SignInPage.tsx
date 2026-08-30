@@ -1,8 +1,11 @@
 import React from "react";
+import { ImageSourcePropType } from "react-native";
 import * as AppleAuthentication from "expo-apple-authentication";
 import styled from "styled-components/native";
 
 import { FormLayout } from "../layout/FormLayout";
+
+const googleLogo = require("../../assets/google-g-logo.png") as ImageSourcePropType;
 
 type SignInPageProps = {
     agreedToTerms: boolean;
@@ -10,6 +13,7 @@ type SignInPageProps = {
     errorMessage: string | null;
     onToggleTerms: () => void;
     onSubmitApple: () => void;
+    onSubmitGoogle: () => void;
     onUseGuest: () => void;
     onOpenTerms: () => void;
     onOpenPrivacyPolicy: () => void;
@@ -21,6 +25,7 @@ export const SignInPage = ({
     errorMessage,
     onToggleTerms,
     onSubmitApple,
+    onSubmitGoogle,
     onUseGuest,
     onOpenTerms,
     onOpenPrivacyPolicy,
@@ -67,7 +72,21 @@ export const SignInPage = ({
                 />
             </AppleButtonWrap>
 
-            {errorMessage ? <ErrorText>{errorMessage}</ErrorText> : null}
+            <GoogleButton
+                activeOpacity={0.84}
+                disabled={loading}
+                $disabled={loading}
+                onPress={onSubmitGoogle}
+            >
+                <GoogleLogo source={googleLogo} resizeMode="contain" />
+                <GoogleButtonText>Sign in with Google</GoogleButtonText>
+            </GoogleButton>
+
+            <ErrorSlot>
+                <ErrorText $visible={Boolean(errorMessage)} numberOfLines={2}>
+                    {errorMessage ?? " "}
+                </ErrorText>
+            </ErrorSlot>
 
             <Divider />
 
@@ -85,6 +104,33 @@ const TopSpacer = styled.View`
 const AppleButtonWrap = styled.View`
     width: 100%;
     margin-top: 8px;
+`;
+
+const GoogleButton = styled.TouchableOpacity<{ $disabled: boolean }>`
+    width: 100%;
+    height: 54px;
+    margin-top: 10px;
+    border-radius: 16px;
+    border-width: 1px;
+    border-color: #dadce0;
+    background-color: #ffffff;
+    opacity: ${(props: { $disabled: boolean }) =>
+        props.$disabled ? 0.72 : 1};
+    align-items: center;
+    justify-content: center;
+    flex-direction: row;
+`;
+
+const GoogleButtonText = styled.Text`
+    color: #202124;
+    font-size: 19px;
+    font-weight: 600;
+    margin-left: 10px;
+`;
+
+const GoogleLogo = styled.Image`
+    width: 22px;
+    height: 22px;
 `;
 
 const TermsArea = styled.View`
@@ -137,12 +183,17 @@ const AgreementIndicator = styled.View<{ $active: boolean }>`
         props.$active ? "#191919" : "#ffffff"};
 `;
 
-const ErrorText = styled.Text`
+const ErrorSlot = styled.View`
+    width: 100%;
+    height: 42px;
+    justify-content: center;
+`;
+
+const ErrorText = styled.Text<{ $visible: boolean }>`
     color: #a93030;
     font-size: 13px;
     line-height: 18px;
-    margin-top: 12px;
-    margin-bottom: 12px;
+    opacity: ${(props: { $visible: boolean }) => (props.$visible ? 1 : 0)};
 `;
 
 const Divider = styled.View`

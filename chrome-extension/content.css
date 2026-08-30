@@ -465,6 +465,9 @@ html.sugu-page-docked body {
 }
 
 .sugu-inline-login {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   margin-top: 10px;
   margin-bottom: 26px;
 }
@@ -788,6 +791,25 @@ html.sugu-page-docked body {
   align-items: center;
   justify-content: center;
   gap: 8px;
+}
+
+.sugu-google-auth-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.sugu-google-auth-logo {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+}
+
+.sugu-inline-google-login-button {
+  height: 42px;
+  border-radius: 21px;
+  font-size: 14px;
 }
 
 .sugu-external-tab-icon {

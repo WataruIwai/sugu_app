@@ -3,6 +3,7 @@ import WidgetKit
 
 private let appGroupId = "group.com.sugu.ios"
 private let widgetDefaultsKey = "widgetFeaturedWord"
+private let lockScreenWidgetDefaultsKey = "lockScreenWidgetFeaturedWord"
 
 struct WidgetSnapshot: Decodable {
     let updatedAt: String
@@ -30,21 +31,36 @@ struct SuguWidgetProvider: TimelineProvider {
     }
 
     func getSnapshot(in context: Context, completion: @escaping (SuguWidgetEntry) -> Void) {
-        completion(SuguWidgetEntry(date: Date(), word: loadWord()))
+        completion(SuguWidgetEntry(date: Date(), word: loadWord(for: context.family)))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<SuguWidgetEntry>) -> Void) {
         let now = Date()
-        let entry = SuguWidgetEntry(date: now, word: loadWord())
+        let entry = SuguWidgetEntry(date: now, word: loadWord(for: context.family))
         let nextUpdate = Calendar.current.date(byAdding: .minute, value: 30, to: now)
             ?? now.addingTimeInterval(1800)
         completion(Timeline(entries: [entry], policy: .after(nextUpdate)))
     }
 
+    private func loadWord(for family: WidgetFamily) -> WidgetWord? {
+        family.isLockScreenAccessory ? loadLockScreenWord() : loadWord()
+    }
+
     private func loadWord() -> WidgetWord? {
+        loadWord(forKey: widgetDefaultsKey, lastShownKey: "widgetLastShownWordId")
+    }
+
+    private func loadLockScreenWord() -> WidgetWord? {
+        loadWord(
+            forKey: lockScreenWidgetDefaultsKey,
+            lastShownKey: "lockScreenWidgetLastShownWordId"
+        ) ?? loadWord()
+    }
+
+    private func loadWord(forKey key: String, lastShownKey: String) -> WidgetWord? {
         guard
             let defaults = UserDefaults(suiteName: appGroupId),
-            let json = defaults.string(forKey: widgetDefaultsKey),
+            let json = defaults.string(forKey: key),
             let data = json.data(using: .utf8),
             let snapshot = try? JSONDecoder().decode(WidgetSnapshot.self, from: data),
             !snapshot.words.isEmpty
@@ -52,14 +68,14 @@ struct SuguWidgetProvider: TimelineProvider {
             return nil
         }
 
-        let lastShownWordId = defaults.string(forKey: "widgetLastShownWordId") ?? snapshot.lastShownWordId
+        let lastShownWordId = defaults.string(forKey: lastShownKey) ?? snapshot.lastShownWordId
         let candidates = snapshot.words.count > 1
             ? snapshot.words.filter { $0.id != lastShownWordId }
             : snapshot.words
         let word = (candidates.isEmpty ? snapshot.words : candidates).randomElement()
 
         if let word {
-            defaults.set(word.id, forKey: "widgetLastShownWordId")
+            defaults.set(word.id, forKey: lastShownKey)
         }
 
         return word
@@ -172,19 +188,11 @@ struct SuguWidgetView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .padding(16)
         case .accessoryRectangular:
-            VStack(alignment: .leading, spacing: 2) {
-                Text(word.term)
-                    .font(.headline.weight(.bold))
-                    .lineLimit(1)
-                Text(japaneseMeaning(for: word))
-                    .font(.caption)
-                    .lineLimit(1)
-            }
+            lockScreenRectangularContent(for: word)
         case .accessoryInline:
-            Text("\(word.term) | \(japaneseMeaning(for: word))")
+            Text("\(word.term) - \(japaneseMeaning(for: word))")
         case .accessoryCircular:
-            Text(monogram(for: word.term))
-                .font(.system(size: 18, weight: .bold, design: .rounded))
+            lockScreenCircularContent(for: word)
         default:
             VStack(alignment: .leading, spacing: 10) {
                 Text(word.term)
@@ -224,15 +232,24 @@ struct SuguWidgetView: View {
         case .accessoryRectangular:
             VStack(alignment: .leading, spacing: 2) {
                 Text("Sugu")
-                    .font(.headline.weight(.semibold))
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .lineLimit(1)
+                    .widgetAccentable()
                 Text("単語を保存しよう")
-                    .font(.caption)
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .lineLimit(1)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         case .accessoryInline:
-            Text("Sugu | 単語を保存しよう")
+            Text("Sugu - 単語を保存しよう")
         case .accessoryCircular:
-            Text("S")
-                .font(.system(size: 18, weight: .bold, design: .rounded))
+            VStack(spacing: 1) {
+                Text("S")
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .widgetAccentable()
+                Text("word")
+                    .font(.system(size: 7, weight: .semibold, design: .rounded))
+            }
         default:
             VStack(alignment: .leading, spacing: 8) {
                 Text("Sugu")
@@ -254,9 +271,49 @@ struct SuguWidgetView: View {
         return trimmed.isEmpty ? "S" : String(trimmed.prefix(2)).uppercased()
     }
 
+    private func lockScreenRectangularContent(for word: WidgetWord) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(word.term)
+                .font(.system(size: 17, weight: .bold, design: .rounded))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .widgetAccentable()
+            Text(japaneseMeaning(for: word))
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+    }
+
+    private func lockScreenCircularContent(for word: WidgetWord) -> some View {
+        VStack(spacing: 1) {
+            Text(monogram(for: word.term))
+                .font(.system(size: 18, weight: .bold, design: .rounded))
+                .lineLimit(1)
+                .minimumScaleFactor(0.65)
+                .widgetAccentable()
+            Text("Sugu")
+                .font(.system(size: 7, weight: .semibold, design: .rounded))
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+    }
+
     private func japaneseMeaning(for word: WidgetWord) -> String {
         let meaning = word.primaryMeaningJa.trimmingCharacters(in: .whitespacesAndNewlines)
         return meaning.isEmpty ? word.primaryMeaningEn : meaning
+    }
+}
+
+private extension WidgetFamily {
+    var isLockScreenAccessory: Bool {
+        switch self {
+        case .accessoryCircular, .accessoryRectangular, .accessoryInline:
+            return true
+        default:
+            return false
+        }
     }
 }
 
