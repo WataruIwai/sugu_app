@@ -240,6 +240,31 @@ export const SearchPage = ({
         <ScreenLayout
             scrollable={false}
             fixedOverlay={fixedOverlay}
+            fixedBottom={
+                canShowAddToMyListButton ? (
+                    <AddButton
+                        activeOpacity={0.88}
+                        disabled={addToListLoading || addedToMyList}
+                        onPress={handleAddToMyList}
+                        $success={addedToMyList}
+                    >
+                        {addedToMyList ? (
+                            <Feather
+                                name="check"
+                                size={18}
+                                color="#2e8b57"
+                            />
+                        ) : null}
+                        <AddButtonText $success={addedToMyList}>
+                            {addToListLoading
+                                ? "Adding..."
+                                : addedToMyList
+                                  ? "Added to My List"
+                                  : "Add My List+"}
+                        </AddButtonText>
+                    </AddButton>
+                ) : null
+            }
         >
             <SearchHeader>
                 <HeaderBackButton onPress={onBack}>
@@ -385,30 +410,6 @@ export const SearchPage = ({
                     </ResultBlock>
                 ) : null}
             </ResultArea>
-
-            {canShowAddToMyListButton ? (
-                <AddButton
-                    activeOpacity={0.88}
-                    disabled={addToListLoading || addedToMyList}
-                    onPress={handleAddToMyList}
-                    $success={addedToMyList}
-                >
-                    {addedToMyList ? (
-                        <Feather
-                            name="check"
-                            size={18}
-                            color="#2e8b57"
-                        />
-                    ) : null}
-                    <AddButtonText $success={addedToMyList}>
-                        {addToListLoading
-                            ? "Adding..."
-                            : addedToMyList
-                              ? "Added to My List"
-                              : "Add My List+"}
-                    </AddButtonText>
-                </AddButton>
-            ) : null}
         </ScreenLayout>
     );
 };
@@ -475,7 +476,7 @@ const ResultArea = styled.ScrollView.attrs({
     bounces: false,
     contentContainerStyle: {
         flexGrow: 1,
-        paddingBottom: 12,
+        paddingBottom: 156,
     },
     alwaysBounceVertical: false,
     overScrollMode: "never",
@@ -640,8 +641,6 @@ const CandidateHintText = styled.Text`
 `;
 
 const AddButton = styled.TouchableOpacity<{ $success: boolean }>`
-    margin-top: 12px;
-    margin-bottom: 8px;
     align-self: stretch;
     height: 52px;
     border-radius: 26px;

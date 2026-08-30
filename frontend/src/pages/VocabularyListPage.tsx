@@ -3,6 +3,7 @@ import { FlatList, ListRenderItem } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import styled from "styled-components/native";
 
+import { BottomNavigation } from "../components/BottomNavigation";
 import { ChromeExtensionNoticeCard } from "../components/ChromeExtensionNoticeCard";
 import { ScreenLayout } from "../layout/ScreenLayout";
 import { WORD_DISPLAY_FONT_FAMILY } from "../styles/fonts";
@@ -22,6 +23,7 @@ type VocabularyListPageProps = {
     onDeleteWord: (wordId: number) => void;
     onAddWordToWidget: (word: WordItem) => void;
     onOpenSearch: () => void;
+    onOpenCards: () => void;
     onOpenTerms: () => void;
     onOpenPrivacyPolicy: () => void;
     onOpenSupport: () => void;
@@ -45,6 +47,7 @@ export const VocabularyListPage = ({
     onDeleteWord,
     onAddWordToWidget,
     onOpenSearch,
+    onOpenCards,
     onOpenTerms,
     onOpenPrivacyPolicy,
     onOpenSupport,
@@ -338,16 +341,12 @@ export const VocabularyListPage = ({
                 ) : null
             }
             fixedBottom={
-                <SearchTriggerButton
-                    activeOpacity={0.84}
-                    onPress={onOpenSearch}
-                >
-                    <Feather
-                        name="search"
-                        size={22}
-                        color="#4a4a4a"
-                    />
-                </SearchTriggerButton>
+                <BottomNavigation
+                    activeTab="home"
+                    onOpenHome={() => undefined}
+                    onOpenSearch={onOpenSearch}
+                    onOpenCards={onOpenCards}
+                />
             }
         >
             <ListWrap>
@@ -764,21 +763,6 @@ const WordActionDangerLabel = styled.Text`
     font-size: 16px;
     line-height: 22px;
     font-weight: 800;
-`;
-
-const SearchTriggerButton = styled.TouchableOpacity`
-    align-self: center;
-    width: 56px;
-    height: 56px;
-    border-radius: 28px;
-    background-color: #ffffff;
-    align-items: center;
-    justify-content: center;
-    shadow-color: #000000;
-    shadow-opacity: 0.1;
-    shadow-radius: 14px;
-    shadow-offset: 0px 6px;
-    elevation: 6;
 `;
 
 const ConfirmOverlay = styled.View`

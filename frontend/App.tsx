@@ -29,6 +29,7 @@ import { VocabularyListPage } from "./src/pages/VocabularyListPage";
 import type { NoticeItem } from "./src/pages/VocabularyListPage";
 import { WordDetailPage } from "./src/pages/WordDetailPage";
 import { SearchPage } from "./src/pages/SearchPage";
+import { CardPage } from "./src/pages/CardPage";
 import { SuguProPage } from "./src/pages/SuguProPage";
 import { BootSplashPage } from "./src/pages/BootSplashPage";
 import { OnboardingPage } from "./src/pages/OnboardingPage";
@@ -61,8 +62,9 @@ type Screen =
     | "list"
     | "detail"
     | "search"
+    | "cards"
     | "pro";
-type SearchReturnScreen = "signin" | "list" | "detail";
+type SearchReturnScreen = "signin" | "list" | "detail" | "cards";
 type ProReturnScreen = "signin" | "list" | "search";
 
 const normalizeToken = (raw: string) => raw.trim().replace(/^"|"$/g, "");
@@ -598,6 +600,24 @@ export default function App() {
         setSearchBonusPromptVisible(false);
         setSearchBonusPromptErrorMessage(null);
         setScreen(searchReturnScreen);
+    };
+
+    const handleOpenHome = () => {
+        setSelectedWord(null);
+        setListMenuOpen(false);
+        setGuestUpgradePromptVisible(false);
+        setSearchBonusPromptVisible(false);
+        setSearchBonusPromptErrorMessage(null);
+        setScreen("list");
+    };
+
+    const handleOpenCards = () => {
+        setSelectedWord(null);
+        setListMenuOpen(false);
+        setGuestUpgradePromptVisible(false);
+        setSearchBonusPromptVisible(false);
+        setSearchBonusPromptErrorMessage(null);
+        setScreen("cards");
     };
 
     const handleOpenPro = (from: ProReturnScreen) => {
@@ -1136,6 +1156,7 @@ export default function App() {
                 onDeleteWord={handleDeleteWord}
                 onAddWordToWidget={handleAddWordToWidget}
                 onOpenSearch={() => handleOpenSearch("list")}
+                onOpenCards={handleOpenCards}
                 onOpenTerms={handleOpenTerms}
                 onOpenPrivacyPolicy={handleOpenPrivacyPolicy}
                 onOpenSupport={handleOpenSupport}
@@ -1206,6 +1227,17 @@ export default function App() {
                 onDismissChromeExtensionNoticePermanently={
                     handleDismissChromeExtensionNoticePermanently
                 }
+            />
+        );
+    }
+
+    if (screen === "cards") {
+        return (
+            <CardPage
+                words={words}
+                authToken={token}
+                onOpenHome={handleOpenHome}
+                onOpenSearch={() => handleOpenSearch("cards")}
             />
         );
     }
