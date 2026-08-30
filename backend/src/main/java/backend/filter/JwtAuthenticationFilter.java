@@ -71,6 +71,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     String path = request.getRequestURI();
     return path.equals("/api/v1/auth/apple")
       || path.equals("/auth/apple")
+      || path.equals("/api/v1/auth/google")
+      || path.equals("/auth/google")
       || path.equals("/api/v1/subscription/notifications/apple")
       || path.equals("/api/v1/auth/apple/web/start")
       || path.equals("/auth/apple/web/start")
