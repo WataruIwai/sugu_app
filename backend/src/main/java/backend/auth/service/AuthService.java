@@ -2,7 +2,10 @@ package backend.auth.service;
 
 import backend.auth.apple.AppleIdentityTokenVerifier;
 import backend.auth.dto.AppleAuthRequest;
+import backend.auth.dto.GoogleAccountInfo;
+import backend.auth.dto.GoogleAuthRequest;
 import backend.auth.dto.VerifiedAppleUserInfo;
+import backend.auth.google.GoogleIdentityTokenVerifier;
 import backend.auth.jwt.JwtService;
 import backend.exception.BadRequestException;
 import backend.user.domain.User;
@@ -19,14 +22,17 @@ public class AuthService {
   private UserRepository userRepository;
   private JwtService jwtService;
   private AppleIdentityTokenVerifier appleIdentityTokenVerifier;
+  private GoogleIdentityTokenVerifier googleIdentityTokenVerifier;
 
   public AuthService(
       UserRepository userRepository,
       JwtService jwtService,
-      AppleIdentityTokenVerifier appleIdentityTokenVerifier) {
+      AppleIdentityTokenVerifier appleIdentityTokenVerifier,
+      GoogleIdentityTokenVerifier googleIdentityTokenVerifier) {
     this.userRepository = userRepository;
     this.jwtService = jwtService;
     this.appleIdentityTokenVerifier = appleIdentityTokenVerifier;
+    this.googleIdentityTokenVerifier = googleIdentityTokenVerifier;
   }
 
   public String signInWithAppleAuth(AppleAuthRequest appleAuthRequest) {
@@ -66,24 +72,64 @@ public class AuthService {
   }
 
   private String signInOrCreateAppleUser(VerifiedAppleUserInfo verifiedAppleUserInfo) {
-    User user = userRepository.getUserByProviderUserId(verifiedAppleUserInfo.getSub());
+    User user = userRepository.getUserByAuthProviderAndProviderUserId("apple", verifiedAppleUserInfo.getSub());
 
     if (user == null) {
       UUID appAccountToken = UUID.randomUUID();
       user =
           User.forAppleSignUp(
               verifiedAppleUserInfo.getEmail(),
-              "apple",
               verifiedAppleUserInfo.getSub(),
               "v1",
               LocalDateTime.now(),
               appAccountToken);
-      long userId = userRepository.createUserWithAppleId(user);
+      long userId = userRepository.createOAuthUser(user);
       String token = jwtService.generateToken(userId);
       return token;
     }
 
     String token = jwtService.generateToken(user.getId());
+    return token;
+  }
+
+  public String signInWithGoogleAuth(GoogleAuthRequest request) {
+    if (request.getIdentityToken() == null || request.getIdentityToken().isBlank()) {
+      throw new BadRequestException("Identity token is required");
+    }
+
+    if (!Boolean.TRUE.equals(request.getAgreedToTerms())) {
+      throw new BadRequestException("You must agree to the terms");
+    }
+
+    // ①フロントから来たトークンの検証
+    GoogleAccountInfo googleAccountInfo = googleIdentityTokenVerifier.verify(request.getIdentityToken());
+    /*
+    ②①から返されたGoogleAccountInfoのgetSubの戻り値を使ってすでにデータがないか確認
+    */
+    User user = userRepository.getUserByAuthProviderAndProviderUserId("google", googleAccountInfo.getSub());
+
+    // ③存在しなかったパターン
+    if(user == null) {
+      UUID appAccountToken = UUID.randomUUID();
+      user = User.forGoogleSignUp(
+        googleAccountInfo.getGmail(),
+        googleAccountInfo.getSub(),
+        "v1",
+        LocalDateTime.now(),
+        appAccountToken);
+
+        //ユーザーデータの作成
+        long userId = userRepository.createOAuthUser(user);
+        //トークンの作成
+        String token = jwtService.generateToken(userId);
+        //トークンをreturn
+        return token;
+    }
+
+    //④すでに存在したパターン
+    //トークンの作成
+    String token = jwtService.generateToken(user.getId());
+    //トークンをreturn
     return token;
   }
 }

@@ -83,31 +83,7 @@ public class UserRepository {
     jdbcClient.sql(sql).param("userId", userId).param("appAccountToken", appAccountToken).update();
   }
 
-  public User getUserByProviderUserId(String providerUserId) {
-    String sql =
-        """
-            SELECT id, email, auth_provider, provider_user_id, app_account_token FROM users WHERE provider_user_id = :providerUserId
-        """;
-
-    RowMapper<User> rowMapper =
-        (rs, rowNum) ->
-            User.fromDb(
-                rs.getLong("id"),
-                rs.getString("email"),
-                rs.getString("auth_provider"),
-                rs.getString("provider_user_id"),
-                rs.getObject("app_account_token", UUID.class));
-
-    return jdbcClient
-        .sql(sql)
-        .param("providerUserId", providerUserId)
-        .query(rowMapper)
-        .optional()
-        .orElse(null);
-  }
-
-  public long createUserWithAppleId(User newUser) {
-
+  public long createOAuthUser(User newUser) {
     String sql =
         """
             INSERT INTO users (email, auth_provider, provider_user_id, terms_version, agreed_terms_at, app_account_token)
@@ -126,4 +102,33 @@ public class UserRepository {
         .query(long.class)
         .single();
   }
+
+  public User getUserByAuthProviderAndProviderUserId(
+    String authProvider,
+    String providerUserId) {
+    String sql =
+        """
+            SELECT id, email, auth_provider, provider_user_id, app_account_token
+            FROM users
+            WHERE auth_provider = :authProvider
+                AND provider_user_id = :providerUserId
+        """;
+
+    RowMapper<User> rowMapper =
+        (rs, rowNum) ->
+            User.fromDb(
+                rs.getLong("id"),
+                rs.getString("email"),
+                rs.getString("auth_provider"),
+                rs.getString("provider_user_id"),
+                rs.getObject("app_account_token", UUID.class));
+
+    return jdbcClient
+        .sql(sql)
+        .param("authProvider", authProvider)
+        .param("providerUserId", providerUserId)
+        .query(rowMapper)
+        .optional()
+        .orElse(null);
+    }
 }

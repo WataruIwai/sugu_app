@@ -44,13 +44,22 @@ public class User {
 
   public static User forAppleSignUp(
       String email,
-      String authProvider,
       String providerUserId,
       String termsVersion,
       LocalDateTime agreedTermsAt,
       UUID appAccountToken) {
     return new User(
-        email, authProvider, providerUserId, termsVersion, agreedTermsAt, appAccountToken);
+        email, "apple", providerUserId, termsVersion, agreedTermsAt, appAccountToken);
+  }
+
+  public static User forGoogleSignUp(
+      String email,
+      String providerUserId,
+      String termsVersion,
+      LocalDateTime agreedTermsAt,
+      UUID appAccountToken) {
+    return new User(
+        email, "google", providerUserId, termsVersion, agreedTermsAt, appAccountToken);
   }
 
   public long getId() {

@@ -5,6 +5,7 @@ import backend.auth.apple.AppleAuthSessionStore;
 import backend.auth.apple.AppleTokenClient;
 import backend.auth.dto.AppleAuthRequest;
 import backend.auth.dto.AppleTokenResponse;
+import backend.auth.dto.GoogleAuthRequest;
 import backend.auth.service.AuthService;
 import backend.exception.UnauthorizedException;
 
@@ -51,9 +52,6 @@ public class AuthController {
 
   @PostMapping("/apple")
   public String signInWithAppleAuth(@RequestBody AppleAuthRequest request) {
-    logger.info(
-        "POST /auth/apple received. identityTokenPresent={}",
-        request.getIdentityToken() != null && !request.getIdentityToken().isBlank());
     String token = authService.signInWithAppleAuth(request);
     logger.info("POST /auth/apple succeeded");
     return token;
@@ -100,6 +98,13 @@ public class AuthController {
     AppleTokenResponse tokenResponse = appleTokenClient.exchangeCode(code, appleWebRedirectUri);
     String token = authService.signInWithAppleWebAuth(tokenResponse.idToken(), session.nonce());
 
+    return token;
+  }
+
+  @PostMapping("/google")
+  public String signInWithGoogleAuth(@RequestBody GoogleAuthRequest request) {
+    String token = authService.signInWithGoogleAuth(request);
+    logger.info("POST /auth/google succeeded");
     return token;
   }
 }

@@ -33,10 +33,10 @@ class AuthServiceTest {
   void createUserAndReturnTokenWhenAppleUserDoesNotExist() {
     when(appleIdentityTokenVerifier.execute("identityToken", "nonceHash"))
         .thenReturn(new VerifiedAppleUserInfo("sub", "email"));
-    when(userRepository.getUserByProviderUserId("sub")).thenReturn(null);
+    when(userRepository.getUserByAuthProviderAndProviderUserId("apple", "sub")).thenReturn(null);
 
     // Codex: 新規ユーザー作成後にJWT発行まで進めるためのmock設定です。
-    when(userRepository.createUserWithAppleId(any(User.class))).thenReturn(1L);
+    when(userRepository.createOAuthUser(any(User.class))).thenReturn(1L);
     when(jwtService.generateToken(1L)).thenReturn("jwt-token");
 
     // Codex: AuthServiceのhappy pathを実行しています。
@@ -44,7 +44,7 @@ class AuthServiceTest {
 
     // Codex: 戻り値と、新規ユーザー作成が呼ばれたことを確認しています。
     assertEquals("jwt-token", token);
-    verify(userRepository).createUserWithAppleId(any(User.class));
+    verify(userRepository).createOAuthUser(any(User.class));
     verify(jwtService).generateToken(1L);
   }
 
@@ -52,14 +52,14 @@ class AuthServiceTest {
   void returnTokenWhenAppleUserExist() {
     when(appleIdentityTokenVerifier.execute("identityToken", "nonceHash"))
         .thenReturn(new VerifiedAppleUserInfo("sub", "email"));
-    when(userRepository.getUserByProviderUserId("sub"))
+    when(userRepository.getUserByAuthProviderAndProviderUserId("apple", "sub"))
         .thenReturn(User.fromDb(1L, "email", "apple", "sub", null));
     when(jwtService.generateToken(1L)).thenReturn("jwt-token");
 
     String token = authService.signInWithAppleAuth(request);
 
     assertEquals("jwt-token", token);
-    verify(userRepository, never()).createUserWithAppleId(any(User.class));
+    verify(userRepository, never()).createOAuthUser(any(User.class));
     verify(jwtService).generateToken(1L);
   }
 }

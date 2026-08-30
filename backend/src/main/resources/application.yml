@@ -37,5 +37,9 @@ apple:
         app-apple-id: ${APPLE_APP_APPLE_ID:}
         root-certificate-paths: ${APPLE_ROOT_CERTIFICATE_PATHS:}
 
+google:
+    oauth:
+        web-client-id: ${GOOGLE_OAUTH_CLIENT_ID}
+
 openai:
     api-key: ${OPENAI_API_KEY}
