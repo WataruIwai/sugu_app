@@ -53,6 +53,7 @@ const state = {
   hasGuestId: false,
   proUrl: "",
   loading: false,
+  authLoading: false,
   saving: false,
   savedWord: "",
   position: null,
@@ -76,6 +77,12 @@ chrome.runtime.onMessage.addListener((message) => {
 
   if (message?.type === "SUGU_AUTH_COMPLETED") {
     handleAuthCompleted();
+  }
+
+  if (message?.type === "SUGU_AUTH_VERIFYING") {
+    state.authLoading = true;
+    render();
+    setStatus("");
   }
 
   if (message?.type === "SUGU_SEARCH_SELECTION") {
@@ -225,9 +232,7 @@ function renderAuthCallbackMessage(message) {
 }
 
 function init() {
-  if (document.getElementById(ROOT_ID)) {
-    return;
-  }
+  document.getElementById(ROOT_ID)?.remove();
 
   const root = document.createElement("div");
   root.id = ROOT_ID;
@@ -388,6 +393,7 @@ function render() {
   if (state.appView === VIEW_LOADING) {
     body.append(renderLoadingView());
     panel.append(header, body);
+    appendAuthLoadingOverlay(panel);
     root.append(panel);
     return;
   }
@@ -395,6 +401,7 @@ function render() {
   if (state.appView === VIEW_ONBOARDING) {
     body.append(renderOnboardingView());
     panel.append(header, body);
+    appendAuthLoadingOverlay(panel);
     root.append(panel);
     return;
   }
@@ -409,6 +416,7 @@ function render() {
       googleAction: () => void startGoogleAuth()
     }));
     panel.append(header, body);
+    appendAuthLoadingOverlay(panel);
     root.append(panel);
     return;
   }
@@ -423,6 +431,7 @@ function render() {
       googleAction: () => void startGoogleAuth()
     }));
     panel.append(header, body);
+    appendAuthLoadingOverlay(panel);
     root.append(panel);
     return;
   }
@@ -430,6 +439,7 @@ function render() {
   if (state.appView === VIEW_GUEST_LIMIT_REACHED) {
     body.append(renderGuestLimitReachedView());
     panel.append(header, body);
+    appendAuthLoadingOverlay(panel);
     root.append(panel);
     return;
   }
@@ -437,6 +447,7 @@ function render() {
   if (state.appView === VIEW_USER_LIMIT_REACHED) {
     body.append(renderUserLimitReachedView());
     panel.append(header, body);
+    appendAuthLoadingOverlay(panel);
     root.append(panel);
     return;
   }
@@ -514,7 +525,28 @@ function render() {
   }
 
   panel.append(header, body);
+  appendAuthLoadingOverlay(panel);
   root.append(panel);
+}
+
+function appendAuthLoadingOverlay(panel) {
+  if (!state.authLoading || state.collapsed) {
+    return;
+  }
+
+  panel.append(
+    createElement("div", {
+      className: "sugu-auth-loading-overlay",
+      attributes: {
+        "aria-live": "polite",
+        "aria-label": "ログイン中"
+      },
+      children: [
+        createElement("div", { className: "sugu-auth-spinner" }),
+        createElement("div", { className: "sugu-auth-loading-text", text: "ログイン中..." })
+      ]
+    })
+  );
 }
 
 function renderLoadingView() {
@@ -1026,6 +1058,8 @@ function showView(view) {
 }
 
 async function startAppleAuth() {
+  setStatus("");
+
   const response = await sendMessage({ type: "SUGU_START_APPLE_AUTH" });
   if (!response.ok) {
     setStatus(response.error, "error");
@@ -1033,8 +1067,12 @@ async function startAppleAuth() {
 }
 
 async function startGoogleAuth() {
+  setStatus("");
+
   const response = await sendMessage({ type: "SUGU_START_GOOGLE_AUTH" });
   if (!response.ok) {
+    state.authLoading = false;
+    render();
     setStatus(response.error, "error");
     return;
   }
@@ -1043,6 +1081,7 @@ async function startGoogleAuth() {
 }
 
 function handleAuthCompleted() {
+  state.authLoading = false;
   state.hasToken = true;
   state.appView = VIEW_SEARCH;
   state.lastSearchError = "";
@@ -1054,6 +1093,7 @@ async function logout() {
   await chrome.storage.local.remove(TOKEN_KEY);
   state.hasToken = false;
   state.settingsOpen = false;
+  state.authLoading = false;
   state.saving = false;
   state.savedWord = "";
   state.lastSearchError = "";

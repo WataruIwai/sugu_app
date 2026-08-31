@@ -667,6 +667,56 @@ html.sugu-page-docked body {
   }
 }
 
+/* Authentication can take a moment after the provider redirects back. */
+.sugu-auth-loading-overlay {
+  position: absolute;
+  inset: 44px 0 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: rgba(128, 128, 128, 0.42);
+  color: var(--sugu-color-text);
+  backdrop-filter: blur(1px);
+}
+
+.sugu-auth-spinner {
+  width: 42px;
+  height: 42px;
+  border: 4px solid rgba(255, 255, 255, 0.76);
+  border-top-color: #1f1f1f;
+  border-radius: 999px;
+  animation: sugu-auth-spin 0.78s linear infinite;
+}
+
+.sugu-auth-loading-text {
+  color: #1f1f1f;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 20px;
+}
+
+#sugu-extension-root.sugu-theme-dark .sugu-auth-loading-overlay {
+  background: rgba(105, 105, 105, 0.44);
+}
+
+#sugu-extension-root.sugu-theme-dark .sugu-auth-spinner {
+  border-color: rgba(43, 43, 43, 0.7);
+  border-top-color: #eeeeee;
+}
+
+#sugu-extension-root.sugu-theme-dark .sugu-auth-loading-text {
+  color: #eeeeee;
+}
+
+@keyframes sugu-auth-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 #sugu-extension-root.sugu-theme-dark .sugu-loading-dot {
   background: #6b6b6b;
 }

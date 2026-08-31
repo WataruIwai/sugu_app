@@ -279,7 +279,7 @@ async function startAppleAuth(originTabId) {
   await chrome.tabs.create({ url: `${API_BASE_URL}/api/v1/auth/apple/web/start` });
 }
 
-async function startGoogleAuth(_originTabId) {
+async function startGoogleAuth(originTabId) {
   const redirectUri = chrome.identity.getRedirectURL("google");
   const state = generateRandomString();
   const nonce = generateRandomString();
@@ -293,6 +293,11 @@ async function startGoogleAuth(_originTabId) {
   authorizationUrl.searchParams.set("prompt", "select_account");
 
   const callbackUrl = await launchWebAuthFlow(authorizationUrl.toString());
+  if (Number.isInteger(originTabId)) {
+    await sendMessageToTab(originTabId, { type: "SUGU_AUTH_VERIFYING" }).catch(() => {});
+    await chrome.tabs.update(originTabId, { active: true }).catch(() => {});
+  }
+
   const params = readOAuthCallbackParams(callbackUrl);
 
   if (params.get("state") !== state) {
@@ -369,9 +374,14 @@ function generateRandomString() {
 }
 
 async function completeAppleAuth(token, authTabId) {
-  await setToken(token);
-
   const originTabId = await getAuthOriginTabId();
+
+  if (originTabId) {
+    await sendMessageToTab(originTabId, { type: "SUGU_AUTH_VERIFYING" }).catch(() => {});
+    await chrome.tabs.update(originTabId, { active: true }).catch(() => {});
+  }
+
+  await setToken(token);
   await chrome.storage.local.remove(AUTH_ORIGIN_TAB_KEY);
 
   if (originTabId) {
