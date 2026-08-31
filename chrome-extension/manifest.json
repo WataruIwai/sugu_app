@@ -39,7 +39,7 @@
     }
   ],
   "permissions": ["activeTab", "contextMenus", "identity", "scripting", "storage"],
-  "host_permissions": ["https://sugu-app-dev.onrender.com/*"],
+  "host_permissions": ["https://vocab-app-7lb5.onrender.com/*"],
   "web_accessible_resources": [
     {
       "resources": ["assets/sugu-logo.svg", "assets/google-g-logo.png"],
