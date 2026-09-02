@@ -3,6 +3,9 @@ const TOKEN_KEY = "suguAuthToken";
 const THEME_KEY = "suguTheme";
 const LAYOUT_KEY = "suguLayoutMode";
 const COLLAPSED_KEY = "suguCollapsed";
+const LANGUAGE_KEY = "suguLanguage";
+const LANGUAGE_JA = "ja";
+const LANGUAGE_EN = "en";
 const LAYOUT_FLOATING = "floating";
 const LAYOUT_DOCKED = "docked";
 const VIEW_LOADING = "loading";
@@ -58,9 +61,110 @@ const state = {
   savedWord: "",
   position: null,
   theme: "light",
+  language: getDefaultLanguage(),
   layoutMode: LAYOUT_FLOATING,
   lastSearchError: ""
 };
+
+const MESSAGES = {
+  ja: {
+    themeLight: "ライトモード",
+    themeDark: "ダークモード",
+    languageToggle: "Switch to English",
+    dockFloating: "自由配置にする",
+    dockRight: "右側に固定",
+    settings: "設定",
+    openSugu: "Suguを開く",
+    close: "閉じる",
+    loginTitle: "ログイン",
+    loginDescription: "Suguアカウントにログインします。",
+    signupTitle: "アカウント作成",
+    signupDescription: "無料アカウントを作成すると、登録ユーザー向けの検索回数を利用でき、単語を保存できます。",
+    searchPlaceholder: "英単語を検索",
+    search: "検索",
+    selectedWord: "選択中の単語を入れる",
+    noSelectedWord: "選択中の単語がありません。",
+    authLoadingLabel: "ログイン中",
+    authLoadingText: "ログイン中...",
+    loading: "読み込んでいます。",
+    logout: "ログアウト",
+    lookingUp: (word) => `Looking up ${word}`,
+    guestStart: "ゲストで始める",
+    onboardingCopy: "英語を読む流れを止めない",
+    onboardingLimit: "3回まで無料で試せます",
+    existingAccount: "アカウントをお持ちの方",
+    firstTime: "初めて利用する方",
+    guestContinue: "ゲストで続ける",
+    createFreeAccount: "無料でアカウント作成",
+    backToSearch: "検索に戻る",
+    guestLimitTitle: "本日の無料検索を使い切りました",
+    guestLimitAccount: "無料のアカウントを作成すると、登録ユーザー向けの検索回数を利用できます。",
+    subscriptionUnlimited: "サブスクリプションに登録すれば、検索回数を気にせず利用できます。",
+    userLimitTitle: "本日の検索回数の上限に達しました",
+    userLimitBonus: "iOS版Suguで広告を視聴すると、検索回数を追加できます。",
+    openIosApp: "スマートフォンで読み取ってiOS版Suguを開いてください。",
+    iosQrAlt: "iOS版SuguのQRコード",
+    candidates: "候補",
+    pronunciation: "発音を聞く",
+    enterWord: "検索したい単語を入力してください。",
+    signedIn: "ログインしました。",
+    signedOut: "ログアウトしました。",
+    noExtensionResponse: "拡張機能の応答がありません。"
+  },
+  en: {
+    themeLight: "Light mode",
+    themeDark: "Dark mode",
+    languageToggle: "日本語に切り替え",
+    dockFloating: "Float panel",
+    dockRight: "Dock to right",
+    settings: "Settings",
+    openSugu: "Open Sugu",
+    close: "Close",
+    loginTitle: "Log in",
+    loginDescription: "Log in to your Sugu account.",
+    signupTitle: "Create account",
+    signupDescription: "Create a free account to save words and use the signed-in search limit.",
+    searchPlaceholder: "Search an English word",
+    search: "Search",
+    selectedWord: "Use selected word",
+    noSelectedWord: "No word is selected.",
+    authLoadingLabel: "Logging in",
+    authLoadingText: "Logging in...",
+    loading: "Loading.",
+    logout: "Log out",
+    lookingUp: (word) => `Looking up ${word}`,
+    guestStart: "Continue as guest",
+    onboardingCopy: "Read English without breaking your flow",
+    onboardingLimit: "Try 3 searches for free",
+    existingAccount: "Already have an account?",
+    firstTime: "New to Sugu?",
+    guestContinue: "Continue as guest",
+    createFreeAccount: "Create a free account",
+    backToSearch: "Back to search",
+    guestLimitTitle: "You've used today's free searches",
+    guestLimitAccount: "Create a free account to use the signed-in search limit and save words.",
+    subscriptionUnlimited: "Subscribe to use Sugu without worrying about search limits.",
+    userLimitTitle: "You've reached today's search limit",
+    userLimitBonus: "Watch an ad in Sugu for iOS to add more searches.",
+    openIosApp: "Scan this with your phone to open Sugu on iOS.",
+    iosQrAlt: "QR code for Sugu on iOS",
+    candidates: "Candidates",
+    pronunciation: "Listen",
+    enterWord: "Enter a word to search.",
+    signedIn: "Logged in.",
+    signedOut: "Logged out.",
+    noExtensionResponse: "No response from the extension."
+  }
+};
+
+function getDefaultLanguage() {
+  return LANGUAGE_EN;
+}
+
+function t(key, ...args) {
+  const value = MESSAGES[state.language]?.[key] ?? MESSAGES.en[key] ?? MESSAGES.ja[key] ?? key;
+  return typeof value === "function" ? value(...args) : value;
+}
 
 if (isAppleAuthPage()) {
   cleanupSuguFromPage();
@@ -252,7 +356,7 @@ function init() {
 async function restoreSettings() {
   const [response, stored] = await Promise.all([
     sendMessage({ type: "SUGU_GET_SETTINGS" }),
-    chrome.storage.local.get([THEME_KEY, LAYOUT_KEY, COLLAPSED_KEY])
+    chrome.storage.local.get([THEME_KEY, LAYOUT_KEY, COLLAPSED_KEY, LANGUAGE_KEY])
   ]);
 
   if (response.ok) {
@@ -263,6 +367,10 @@ async function restoreSettings() {
 
   if (stored[THEME_KEY] === "dark" || stored[THEME_KEY] === "light") {
     state.theme = stored[THEME_KEY];
+  }
+
+  if (stored[LANGUAGE_KEY] === LANGUAGE_JA || stored[LANGUAGE_KEY] === LANGUAGE_EN) {
+    state.language = stored[LANGUAGE_KEY];
   }
 
   if (stored[LAYOUT_KEY] === LAYOUT_DOCKED || stored[LAYOUT_KEY] === LAYOUT_FLOATING) {
@@ -348,17 +456,22 @@ function render() {
   const title = createElement("div", { className: "sugu-title" });
   title.append(logo);
   const themeButton = createIconButton(
-    state.theme === "dark" ? "ライトモード" : "ダークモード",
+    state.theme === "dark" ? t("themeLight") : t("themeDark"),
     state.theme === "dark" ? "☀" : "☾",
     () => void toggleTheme()
   );
+  const languageButton = createIconButton(
+    t("languageToggle"),
+    state.language === LANGUAGE_JA ? "EN" : "JA",
+    () => void toggleLanguage()
+  );
   const layoutButton = createIconButton(
-    effectiveLayoutMode === LAYOUT_DOCKED ? "自由配置にする" : "右側に固定",
+    effectiveLayoutMode === LAYOUT_DOCKED ? t("dockFloating") : t("dockRight"),
     effectiveLayoutMode === LAYOUT_DOCKED ? "⇱" : "▥",
     () => void toggleLayoutMode()
   );
   const settingsButton = createIconButton(
-    "設定",
+    t("settings"),
     "⚙",
     () => {
       state.settingsOpen = !state.settingsOpen;
@@ -368,7 +481,7 @@ function render() {
   settingsButton.dataset.suguSettingsToggle = "true";
   const collapsedDockHandle = effectiveLayoutMode === LAYOUT_DOCKED && state.collapsed;
   const collapseButton = createIconButton(
-    state.collapsed ? "Suguを開く" : "閉じる",
+    state.collapsed ? t("openSugu") : t("close"),
     collapsedDockHandle ? "☰" : state.collapsed ? "+" : "−",
     () => setCollapsed(!state.collapsed)
   );
@@ -379,6 +492,7 @@ function render() {
       header.append(settingsButton);
     }
     header.append(themeButton);
+    header.append(languageButton);
     if (canUseDockedLayout) {
       header.append(layoutButton);
     }
@@ -408,8 +522,8 @@ function render() {
 
   if (state.appView === VIEW_LOGIN) {
     body.append(renderAuthInfoView({
-      title: "ログイン",
-      description: "Suguアカウントにログインします。",
+      title: t("loginTitle"),
+      description: t("loginDescription"),
       primaryText: "Sign in with Apple",
       primaryAction: () => void startAppleAuth(),
       googleText: "Sign in with Google",
@@ -423,8 +537,8 @@ function render() {
 
   if (state.appView === VIEW_SIGNUP) {
     body.append(renderAuthInfoView({
-      title: "アカウント作成",
-      description: "無料アカウントを作成すると、登録ユーザー向けの検索回数を利用でき、単語を保存できます。",
+      title: t("signupTitle"),
+      description: t("signupDescription"),
       primaryText: "Sign in with Apple",
       primaryAction: () => void startAppleAuth(),
       googleText: "Sign in with Google",
@@ -461,7 +575,7 @@ function render() {
     className: "sugu-input",
     attributes: {
       type: "text",
-      placeholder: "英単語を検索",
+      placeholder: t("searchPlaceholder"),
       value: state.currentWord
     }
   });
@@ -487,7 +601,7 @@ function render() {
 
   const searchButton = createElement("button", {
     className: "sugu-button sugu-search-button",
-    text: "検索"
+    text: t("search")
   });
   searchButton.disabled = state.loading;
   searchButton.addEventListener("click", () => {
@@ -500,14 +614,14 @@ function render() {
   if (!isVideoServicePage()) {
     const selectedButton = createElement("button", {
       className: "sugu-button sugu-secondary-button",
-      text: "選択中の単語を入れる"
+      text: t("selectedWord")
     });
     selectedButton.addEventListener("click", () => {
       const word = cleanSelection(window.getSelection()?.toString() ?? "");
       if (word) {
         setInputValue(word);
       } else {
-        setStatus("選択中の単語がありません。", "error");
+        setStatus(t("noSelectedWord"), "error");
       }
     });
     body.append(createElement("div", { className: "sugu-actions", children: [selectedButton] }));
@@ -539,11 +653,11 @@ function appendAuthLoadingOverlay(panel) {
       className: "sugu-auth-loading-overlay",
       attributes: {
         "aria-live": "polite",
-        "aria-label": "ログイン中"
+        "aria-label": t("authLoadingLabel")
       },
       children: [
         createElement("div", { className: "sugu-auth-spinner" }),
-        createElement("div", { className: "sugu-auth-loading-text", text: "ログイン中..." })
+        createElement("div", { className: "sugu-auth-loading-text", text: t("authLoadingText") })
       ]
     })
   );
@@ -554,7 +668,7 @@ function renderLoadingView() {
     className: "sugu-simple-view",
     children: [
       createElement("div", { className: "sugu-simple-title", text: "Sugu" }),
-      createElement("div", { className: "sugu-simple-description", text: "読み込んでいます。" })
+      createElement("div", { className: "sugu-simple-description", text: t("loading") })
     ]
   });
 }
@@ -565,7 +679,7 @@ function renderSettingsMenu() {
 
   const logoutButton = createElement("button", {
     className: "sugu-settings-menu-item",
-    text: "ログアウト",
+    text: t("logout"),
     attributes: { type: "button" }
   });
   logoutButton.addEventListener("click", () => void logout());
@@ -600,7 +714,7 @@ function renderSearchLoading() {
     className: "sugu-loading-state",
     attributes: { "aria-live": "polite" },
     children: [
-      createElement("div", { className: "sugu-loading-title", text: `Looking up ${loadingWord}` }),
+      createElement("div", { className: "sugu-loading-title", text: t("lookingUp", loadingWord) }),
       createElement("div", {
         className: "sugu-loading-dots",
         children: [
@@ -616,7 +730,7 @@ function renderSearchLoading() {
 function renderOnboardingView() {
   const guestButton = createElement("button", {
     className: "sugu-button sugu-primary-wide-button",
-    text: "ゲストで始める"
+    text: t("guestStart")
   });
   guestButton.addEventListener("click", () => void startGuest());
 
@@ -624,11 +738,11 @@ function renderOnboardingView() {
     className: "sugu-onboarding",
     children: [
       createElement("div", { className: "sugu-onboarding-brand", text: "Sugu" }),
-      createElement("div", { className: "sugu-onboarding-copy", text: "英語を読む流れを止めない" }),
-      createElement("div", { className: "sugu-onboarding-limit", text: "3回まで無料で試せます" }),
+      createElement("div", { className: "sugu-onboarding-copy", text: t("onboardingCopy") }),
+      createElement("div", { className: "sugu-onboarding-limit", text: t("onboardingLimit") }),
       guestButton,
-      createAuthChoice("アカウントをお持ちの方", "ログイン", () => showView(VIEW_LOGIN)),
-      createAuthChoice("初めて利用する方", "アカウント作成", () => showView(VIEW_SIGNUP))
+      createAuthChoice(t("existingAccount"), t("loginTitle"), () => showView(VIEW_LOGIN)),
+      createAuthChoice(t("firstTime"), t("signupTitle"), () => showView(VIEW_SIGNUP))
     ]
   });
 }
@@ -684,7 +798,7 @@ function renderAuthInfoView({ title, description, primaryText, primaryAction, go
 
   const guestButton = createElement("button", {
     className: "sugu-button sugu-outline-wide-button",
-    text: "ゲストで続ける"
+    text: t("guestContinue")
   });
   guestButton.addEventListener("click", () => void startGuest());
 
@@ -726,27 +840,27 @@ function renderInlineLoginAction() {
 function renderGuestLimitReachedView() {
   const signupButton = createElement("button", {
     className: "sugu-button sugu-primary-wide-button",
-    text: "無料でアカウント作成"
+    text: t("createFreeAccount")
   });
   signupButton.addEventListener("click", () => showView(VIEW_SIGNUP));
 
   const loginButton = createElement("button", {
     className: "sugu-button sugu-outline-wide-button",
-    text: "ログイン"
+    text: t("loginTitle")
   });
   loginButton.addEventListener("click", () => showView(VIEW_LOGIN));
 
   return createElement("div", {
     className: "sugu-limit-view",
     children: [
-      createElement("div", { className: "sugu-simple-title", text: "本日の無料検索を使い切りました" }),
+      createElement("div", { className: "sugu-simple-title", text: t("guestLimitTitle") }),
       createElement("div", {
         className: "sugu-simple-description",
-        text: "無料のアカウントを作成すると、登録ユーザー向けの検索回数を利用できます。"
+        text: t("guestLimitAccount")
       }),
       createElement("div", {
         className: "sugu-simple-description",
-        text: "サブスクリプションに登録すれば、検索回数を気にせず利用できます。"
+        text: t("subscriptionUnlimited")
       }),
       signupButton,
       loginButton
@@ -757,7 +871,7 @@ function renderGuestLimitReachedView() {
 function renderUserLimitReachedView() {
   const backButton = createElement("button", {
     className: "sugu-button sugu-outline-wide-button",
-    text: "検索に戻る",
+    text: t("backToSearch"),
     attributes: { type: "button" }
   });
   backButton.addEventListener("click", () => {
@@ -769,19 +883,19 @@ function renderUserLimitReachedView() {
     className: "sugu-app-qr",
     attributes: {
       src: buildQrImageUrl(state.proUrl),
-      alt: "iOS版SuguのQRコード"
+      alt: t("iosQrAlt")
     }
   });
 
   return createElement("div", {
     className: "sugu-limit-view sugu-user-limit-view",
     children: [
-      createElement("div", { className: "sugu-simple-title", text: "本日の検索回数の上限に達しました" }),
+      createElement("div", { className: "sugu-simple-title", text: t("userLimitTitle") }),
       createElement("div", {
         className: "sugu-simple-description",
         children: [
-          createElement("div", { text: "iOS版Suguで広告を視聴すると、検索回数を追加できます。" }),
-          createElement("div", { text: "サブスクリプションに登録すれば、検索回数を気にせず利用できます。" })
+          createElement("div", { text: t("userLimitBonus") }),
+          createElement("div", { text: t("subscriptionUnlimited") })
         ]
       }),
       createElement("div", {
@@ -790,7 +904,7 @@ function renderUserLimitReachedView() {
           qrImage,
           createElement("div", {
             className: "sugu-simple-footnote",
-            text: "スマートフォンで読み取ってiOS版Suguを開いてください。"
+            text: t("openIosApp")
           })
         ]
       }),
@@ -823,7 +937,7 @@ function renderResult(result) {
 
   if (Array.isArray(result.candidates) && result.candidates.length > 0) {
     const candidates = createElement("div", { className: "sugu-entry" });
-    candidates.append(createElement("div", { className: "sugu-meaning-en", text: "候補" }));
+    candidates.append(createElement("div", { className: "sugu-meaning-en", text: t("candidates") }));
     candidates.append(createElement("div", { className: "sugu-meaning-ja", text: result.candidates.join(", ") }));
     wrapper.append(candidates);
   }
@@ -860,12 +974,12 @@ function renderPronunciationButton(word) {
     className: "sugu-pronunciation-button",
     attributes: {
       type: "button",
-      title: "発音を聞く"
+      title: t("pronunciation")
     }
   });
   button.append(
     createVolumeIcon(),
-    createElement("span", { text: "発音を聞く" })
+    createElement("span", { text: t("pronunciation") })
   );
   button.addEventListener("click", () => speakWord(word));
   return button;
@@ -957,7 +1071,7 @@ function buildQrImageUrl(url) {
 async function search(word) {
   const trimmed = cleanSelection(word);
   if (!trimmed) {
-    setStatus("検索したい単語を入力してください。", "error");
+    setStatus(t("enterWord"), "error");
     return;
   }
 
@@ -1086,7 +1200,7 @@ function handleAuthCompleted() {
   state.appView = VIEW_SEARCH;
   state.lastSearchError = "";
   render();
-  setStatus("ログインしました。", "success");
+  setStatus(t("signedIn"), "success");
 }
 
 async function logout() {
@@ -1099,7 +1213,7 @@ async function logout() {
   state.lastSearchError = "";
   state.appView = state.hasGuestId ? VIEW_SEARCH : VIEW_ONBOARDING;
   render();
-  setStatus("ログアウトしました。", "success");
+  setStatus(t("signedOut"), "success");
 }
 
 function isGuestSearchLimitError(response) {
@@ -1137,6 +1251,12 @@ function speakWord(word) {
 async function toggleTheme() {
   state.theme = state.theme === "dark" ? "light" : "dark";
   await chrome.storage.local.set({ [THEME_KEY]: state.theme });
+  render();
+}
+
+async function toggleLanguage() {
+  state.language = state.language === LANGUAGE_JA ? LANGUAGE_EN : LANGUAGE_JA;
+  await chrome.storage.local.set({ [LANGUAGE_KEY]: state.language });
   render();
 }
 
@@ -2269,7 +2389,7 @@ function sendMessage(message) {
         resolve({ ok: false, error: chrome.runtime.lastError.message });
         return;
       }
-      resolve(response ?? { ok: false, error: "拡張機能の応答がありません。" });
+      resolve(response ?? { ok: false, error: t("noExtensionResponse") });
     });
   });
 }

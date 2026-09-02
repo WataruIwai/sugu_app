@@ -2,6 +2,9 @@ const API_BASE_URL = "https://vocab-app-7lb5.onrender.com";
 const TOKEN_KEY = "suguAuthToken";
 const GUEST_ID_KEY = "suguGuestId";
 const AUTH_ORIGIN_TAB_KEY = "suguAppleAuthOriginTabId";
+const LANGUAGE_KEY = "suguLanguage";
+const LANGUAGE_JA = "ja";
+const LANGUAGE_EN = "en";
 const GOOGLE_WEB_CLIENT_ID = "488347090160-7rouuhtkqk384qlj0f8cq4ialnqjh04b.apps.googleusercontent.com";
 const AUTH_CALLBACK_PATHS = [
   "/api/v1/auth/apple/web/callback",
@@ -17,13 +20,24 @@ const ERROR_MESSAGE_BY_CODE = {
   INTERNAL_SERVER_ERROR: "サーバーエラーが発生しました",
   INTERNAL_ERROR: "サーバーエラーが発生しました"
 };
+const CONTEXT_MENU_TITLE_BY_LANGUAGE = {
+  [LANGUAGE_JA]: "Suguで検索",
+  [LANGUAGE_EN]: "Search with Sugu"
+};
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: "sugu-search-selection",
-    title: "Suguで検索",
+    title: CONTEXT_MENU_TITLE_BY_LANGUAGE[getDefaultLanguage()],
     contexts: ["selection"]
   });
+  updateContextMenuTitle();
+});
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName === "local" && changes[LANGUAGE_KEY]) {
+    updateContextMenuTitle();
+  }
 });
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
@@ -224,6 +238,24 @@ async function handleAuthExpired(response, token) {
 
 function normalizeWord(word) {
   return typeof word === "string" ? word.trim() : "";
+}
+
+function getDefaultLanguage() {
+  return LANGUAGE_EN;
+}
+
+async function getLanguage() {
+  const values = await chrome.storage.local.get(LANGUAGE_KEY);
+  return values[LANGUAGE_KEY] === LANGUAGE_JA || values[LANGUAGE_KEY] === LANGUAGE_EN
+    ? values[LANGUAGE_KEY]
+    : getDefaultLanguage();
+}
+
+async function updateContextMenuTitle() {
+  const language = await getLanguage();
+  chrome.contextMenus.update("sugu-search-selection", {
+    title: CONTEXT_MENU_TITLE_BY_LANGUAGE[language]
+  }).catch(() => {});
 }
 
 function createServerError(response, text, fallback) {
