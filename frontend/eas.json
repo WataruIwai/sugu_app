@@ -6,15 +6,25 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "488347090160-7rouuhtkqk384qlj0f8cq4ialnqjh04b.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "488347090160-iqjotrg2rbhc05n65m2jn4ariguo5dck.apps.googleusercontent.com"
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "488347090160-7rouuhtkqk384qlj0f8cq4ialnqjh04b.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "488347090160-iqjotrg2rbhc05n65m2jn4ariguo5dck.apps.googleusercontent.com"
+      }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://vocab-app-7lb5.onrender.com"
+        "EXPO_PUBLIC_API_BASE_URL": "https://vocab-app-7lb5.onrender.com",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "488347090160-7rouuhtkqk384qlj0f8cq4ialnqjh04b.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "488347090160-iqjotrg2rbhc05n65m2jn4ariguo5dck.apps.googleusercontent.com"
       }
     }
   },
